@@ -207,10 +207,28 @@ var circle = new google.maps.Circle({
 	map,
 	center: centerlatlng,
 	radius: 30,
+
+
 });
 
 circle.setMap(map);
 
+//Danger Source:
+var centerlatlng = new google.maps.LatLng(-37.81952,144.95714099999998);
+var circle = new google.maps.Circle({
+	strokeColor: "#eb343a",
+    strokeOpacity: 1.000000,
+    strokeWeight: 2,
+    fillColor: "#eb343a",
+    fillOpacity: 0.200000,
+	map,
+	center: centerlatlng,
+	radius: 100,
+
+
+});
+
+circle.setMap(map);
 
 
 var coords = [
