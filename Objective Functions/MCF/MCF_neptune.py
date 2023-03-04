@@ -29,7 +29,7 @@ class Data():
     ### gpu_function_memory_matrix: np.array = np.array([])
     ### gpu_node_memory_matrix: np.array = np.array([])
 
-    prev_x = np.array([])  ## Use by neptune for GPU ....
+    # prev_x = np.array([])  ## Use by neptune for GPU ....
 
 
     ################## MISSING INPUTS ##################
@@ -44,8 +44,18 @@ class Data():
     # Set of requests connected to node n
     U_ni = []
 
+    # Result matrix for allocation of request 'r' in node 'j'
+    x_rj = np.zeros([len(nodes),R])
+
     # Identifies which user sent the request [U x R]
-    req_u=[[1,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0],[0,0,1,0,0,0,0,0],[0,0,0,1,0,0,0,0],[0,0,0,0,1,0,0,0],[0,0,0,0,0,1,0,0],[0,0,0,0,0,0,1,0],[0,0,0,0,0,0,0,1]]
+    req_u=[[1,0,0,0,0,0,0,0],
+           [0,1,0,0,0,0,0,0],
+           [0,0,1,0,0,0,0,0],
+           [0,0,0,1,0,0,0,0],
+           [0,0,0,0,1,0,0,0],
+           [0,0,0,0,0,1,0,0],
+           [0,0,0,0,0,0,1,0],
+           [0,0,0,0,0,0,0,1]]
 
     # Show which requests are assigned to each function [F x R]
     req_dist = np.zeros([len(function_memory_matrix),R])
@@ -53,38 +63,28 @@ class Data():
     r = 0
     while r<R:
         for i in range(len(sources)):
-            for f in range(len(function_memory_matrix)):
+            for f in range(len(functions)):
                 dif = workload_matrix[f][i] 
                 while dif >0:
                     req_dist[f][r]=1
                     r=r+1
                     dif = dif-1
-                # if (workload_matrix[f][i]*function_memory_matrix[f])/function_memory_matrix[f]==1:
-                #     req_dist[f][r]=1
-                #     r=r+1
-                # else:
-                #     dif = workload_matrix[f][i] 
-                #     while dif >0:
-                #         req_dist[f][r]=1
-                #         r=r+1
-                #         dif = dif-1
 
-    #matrix that assignes a function memory to each request [F x N]
-    m_request= np.empty((len(function_memory_matrix),R))
-    for f in range(len(workload_matrix)):
-        for r in range (R):
-            m_request[f][r]=function_memory_matrix[f]*req_dist[f][r]
+    # Matrix that assignes a function memory to each request [F x N]
+    m_request = np.empty((len(function_memory_matrix),R))
+    for f in range(len(functions)):
+        for r in range(R):
+            m_request[f][r] = function_memory_matrix[f]*req_dist[f][r]
 
     # Sort the requests by their memory requirement --- returns position of the [] where request is found
     m_index = []
 
-    for r in range (R):
-        for f in range (len(function_memory_matrix)):
+    for r in range(R):
+        for f in range(len(functions)):
             if m_request[f][r]!=0:
                 m_index.append(m_request[f][r])
         
-    final_index = sorted(range(len(m_index)), key = lambda a: m_index[a])
-
+    final_index = np.argsort(m_index)
 
 
     def haversine(lon1, lat1, lon2, lat2):
@@ -112,7 +112,6 @@ class Data():
                 if req_u[u][r]==1:
                     request_latitude = U.iloc[u]['Latitude']
                     request_longitude = U.iloc[u]['Longitude']
-
                     dist_geo = haversine(node_longitude, node_latitude, request_longitude, request_latitude)
                     if dist_geo <= radius[i]:
                         temp.append(1)
@@ -122,9 +121,6 @@ class Data():
     U_ni.append(temp)
 
     # DISTANCE BETWEEN NODES
-    #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
-    radius = np.full(len(sources), 0.03)
-
     for i in range(len(sources)):
         node1_latitude = sources.iloc[i]['LATITUDE']
         node1_longitude = sources.iloc[i]['LONGITUDE']
@@ -132,21 +128,10 @@ class Data():
         for j in range(len(nodes)):
             node2_latitude = nodes.iloc[j]['LATITUDE']
             node2_longitude = nodes.iloc[j]['LONGITUDE']
-
             dist_geo_nodes = haversine(node1_longitude, node1_latitude, node2_longitude,node2_latitude)
             temp_dist.append(np.round(dist_geo_nodes,3))
-            
+            #temp_dist.append(np.round(dist_geo_nodes/(3*10e5),14))
         node_delay_matrix.append(temp_dist)
-
-    for r1 in range(len(sources)):
-        temp_delay = []
-        for r2 in range(len(nodes)):
-            if r1==r2:
-                temp_delay.append(0)
-            else:
-                temp_delay.append(radius[r1]+radius[r2])
-        max_delay_matrix.append(temp_delay)
-
 
 
     def __init__(self, sources: List[str], nodes: List[str], functions: List[str]):
@@ -312,56 +297,6 @@ class Solver:
 
         # Initialize constraints
         self.log("Initializing constraints...")
-        # If a function `f` is deployed on node `n` then c[f,n] is True
-        for f in range(len(data.functions)):
-            for j in range(len(data.nodes)):
-                self.model.Add(
-                    sum([
-                        self.x[j, r] for r in data.final_index
-                    ]) <= self.c[f, j] * 1000)
-                
-        # CHECK THIS 
-        for j in range(len(data.nodes)):
-            self.model.Add(
-                sum([
-                    self.x[j, r] for r in data.final_index
-                ]) <= self.y[j] * 1000)
-
-
-        # The sum of the memory of functions deployed on a node `n` is less than its capacity
-        for j in range(len(data.nodes)):
-            self.model.Add(
-                sum([
-                    self.c[f, j] * self.data.function_memory_matrix[f] for f in range(len(data.functions))
-                ]) <= data.node_memory_matrix[j]*self.y[j])
-
-        """ # All requests in a node are rerouted somewhere else
-        if data.prev_x.shape == (0,):
-            for f in range(len(data.functions)):
-                for i in range(len(data.sources)):
-                    self.solver.Add(
-                        self.solver.Sum([
-                            self.x[i, f, j] for j in range(len(data.nodes))
-                        ]) == 1)
-        # If GPUs are set, consider the traffic forwarded to gpu
-        else:
-            for f in range(len(data.functions)):
-                for i in range(len(data.sources)):
-                    self.solver.Add(
-                        self.solver.Sum([
-                            self.x[i, f, j] for j in range(len(data.nodes))
-                        ]) == 1 - data.prev_x[i][f].sum()) """
-
-        # Consider the amount of cores available on a node
-        # Do not overload a node
-        for j in range(len(data.nodes)):
-            self.model.Add(
-                sum([
-                    self.x[j, r] * self.data.core_per_req_matrix[f,j] for f in range(len(data.functions)) for r in
-                    range(self.data.final_index)
-                ]) <= self.data.node_cores_matrix[j]*self.y[j]
-            ) ### Check the parenthesis for workload_matrix and core_per_req_matrix. The for loop depends on how u is given
-
         #Controls if request r can be managed by node j
         for r in data.final_index:
             for j in range(len(data.nodes)):
@@ -375,11 +310,43 @@ class Solver:
                         if data.node_delay_matrix[i][j]> data.max_delay_matrix[i][j]:
                             self.model.Add(
                                 self.x[j, r]==0
-                            )  
+                            )              
+
+        # The sum of the memory of functions deployed on a node `n` is less than its capacity
+        for j in range(len(data.nodes)):
+            self.model.Add(
+                sum([
+                    self.c[f, j] * self.data.function_memory_matrix[f] for f in range(len(data.functions))
+                ]) <= data.node_memory_matrix[j]*self.y[j])
+
+        # Consider the amount of cores available on a node
+        # Do not overload a node
+        for j in range(len(data.nodes)):
+            self.model.Add(
+                sum([
+                    self.x[j, r] * self.data.core_per_req_matrix[r,j] for r in self.data.final_index
+                ]) <= self.data.node_cores_matrix[j]*self.y[j]
+            ) ### Check the parenthesis for workload_matrix and core_per_req_matrix. The for loop depends on how u is given
+
 
         # Contraint family (each request can be allocated just once)
         for r in data.final_index:
             self.model.Add(sum([self.x[j, r] for j in range(len(data.nodes))]) <= 1)
+
+        # If a function `f` is deployed on node `n` then c[f,n] is True
+        for f in range(len(data.functions)):
+            for j in range(len(data.nodes)):
+                self.model.Add(
+                    sum([
+                        self.x[j, r] for r in data.final_index
+                    ]) <= self.c[f, j] * 1000)
+                
+        # If request 'r' is allocated to node j then y[j] is 1
+        for j in range(len(data.nodes)):
+            self.model.Add(
+                sum([
+                    self.x[j, r] for r in data.final_index
+                ]) <= self.y[j] * 1000)
 
 
     def log(self, msg: str):
@@ -402,36 +369,47 @@ class Solver:
         max_requests = self.solver.ObjectiveValue()
 
         # Hint (speed up solving)
-        for j in range(len(self.nodes)):
+        for j in range(len(self.data.nodes)):
             for r in self.data.final_index:
                 self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
             
         # Constraint previous objective
         self.model.Add(
             sum([
-                self.x[j, r] for j in range(len(self.nodes)) for r in self.data.final_index
+                self.x[j, r] for j in range(len(self.data.nodes)) for r in self.data.final_index
             ]) == round(self.solver.ObjectiveValue())
         ) 
 
         # Minimize the number of nodes used
         objective_min = []
 
-        for j in range(len(self.nodes)):
+        for j in range(len(self.data.nodes)):
             objective_min.append(self.y[j])
         self.model.Minimize(sum(objective_min))
-
 
         # Solve problem
         status = self.solver.Solve(self.model)
         self.log(f"Problem solved with status {status}")
-
+        # DISPLAY THE SOLUTION-----------------------------------
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+            print('SOLUTION:')
+            print(f'Objective value: {max_requests} requests have been allocated to {self.solver.ObjectiveValue()} nodes\n')
+            for r in self.data.final_index:
+                for j in range(len(self.data.nodes)):
+                    if int(self.solver.Value(self.x[j,r])) == 1:
+                        print(f'x[{j},{r}]: Request {r} has been allocated to node {j}')
+                        self.data.x_rj[j][r]=1
 
     def results(self) -> Tuple[np.array, np.array]:
         # Fill x matrix
-        x_matrix = np.empty(shape=(len(self.data.nodes), len(self.data.final_index))) ## REVISAR
+        mat_mul = np.dot(self.data.req_dist,np.transpose(self.data.x_rj))
+        x_matrix = np.empty(shape=(len(self.data.functions),len(self.data.nodes)))
         for j in range(len(self.data.nodes)):
-            for r in self.data.final_index:
-                x_matrix[j][r] = self.solver.Value(self.x[j, r])
+            for f in range(len(self.data.functions)):
+                if sum(mat_mul[f])==0:
+                    x_matrix[f][j] = 0
+                else:
+                    x_matrix[f][j] = mat_mul[f][j]/sum(mat_mul[f])
         # Fill c matrix
         c_matrix = np.empty(shape=(len(self.data.functions), len(self.data.nodes)))
         for j in range(len(self.data.nodes)):
@@ -445,111 +423,3 @@ class Solver:
 
     def score(self) -> float:
         return self.solver.ObjectiveValue()
-
-
-# class GPUSolver:
-#     solver = pywraplp.Solver.CreateSolver('SCIP')
-#     objective = solver.Objective()
-#     x = {}
-#     c = {}
-#     data: Data = None
-
-#     def __init__(self, verbose: bool = True):
-#         self.verbose = verbose
-#         if verbose:
-#             self.solver.EnableOutput()
-#         pass
-
-#     def load_input(self, data: Data):
-#         self.data = data
-
-#         # Initialize variable
-#         self.log("Initializing variables...")
-#         for f in range(len(data.functions)):
-#             for i in range(len(data.sources)):
-#                 for j in range(len(data.nodes)):
-#                     self.x[i, f, j] = self.solver.NumVar(0, 1, f"x[{i}][{f}][{j}]")
-#         for f in range(len(data.functions)):
-#             for i in range(len(data.nodes)):
-#                 self.c[f, i] = self.solver.BoolVar(f"c[{f}][{i}]")
-
-#         # Initialize constraints
-#         self.log("Initializing constraints...")
-#         # If a function `f` is deployed on node `n` then c[f,n] is True
-#         for f in range(len(data.functions)):
-#             for j in range(len(data.nodes)):
-#                 self.solver.Add(
-#                     self.solver.Sum([
-#                         self.x[i, f, j] for i in range(len(data.sources))
-#                     ]) <= self.c[f, j] * 1000000)
-
-#         # The sum of the memory of functions deployed on a node is less than its capacity
-#         for j in range(len(data.nodes)):
-#             self.solver.Add(
-#                 self.solver.Sum([
-#                     self.c[f, j] * self.data.function_memory_matrix[f] for f in range(len(data.functions))
-#                 ]) <= data.node_memory_matrix[j])
-
-#         # The sum of the memory of functions deployed on a gpu device is less than its capacity
-#         for j in range(len(data.nodes)):
-#             self.solver.Add(
-#                 self.solver.Sum([
-#                     self.c[f, j] * self.data.gpu_function_memory_matrix[f] for f in range(len(data.functions))
-#                 ]) <= data.gpu_node_memory_matrix[j])
-
-#         # Don't overload GPUs
-#         # Set the response time to 1
-#         for f in range(len(data.functions)):
-#             for j in range(len(data.nodes)):
-#                 self.solver.Add(
-#                     self.solver.Sum([
-#                         self.x[i, f, j] * data.workload_matrix[f, i] * data.response_time_matrix[f, j] for i in
-#                         range(len(data.sources))
-#                     ]) <= 1000)
-
-#         # Serve at most all requests
-#         for f in range(len(data.functions)):
-#             for i in range(len(data.sources)):
-#                 self.solver.Add(
-#                     self.solver.Sum([
-#                         self.x[i, f, j] for j in range(len(data.nodes))
-#                     ]) <= 1)
-
-#     def log(self, msg: str):
-#         if self.verbose:
-#             print(f"{datetime.datetime.now()}: {msg}")
-
-#     def solve(self):
-#         # Starting to solve
-#         self.log("Starting solving problem...")
-
-#         # Objective function
-#         # Satisfy the maximum amount of requests
-#         for f in range(len(self.data.functions)):
-#             for i in range(len(self.data.sources)):
-#                 for j in range(len(self.data.nodes)):
-#                     self.objective.SetCoefficient(
-#                         self.x[i, f, j], float(self.data.workload_matrix[f, i])
-#                     )
-#         self.objective.SetMaximization()
-
-#         # Solve problem
-#         status = self.solver.Solve()
-#         self.log(f"Problem solved with status {status}")
-
-#     def results(self) -> Tuple[np.array, np.array]:
-#         # Fill x matrix
-#         x_matrix = np.zeros(shape=(len(self.data.sources), len(self.data.functions), len(self.data.nodes)))
-#         for j in range(len(self.data.nodes)):
-#             for i in range(len(self.data.sources)):
-#                 for f in range(len(self.data.functions)):
-#                     x_matrix[i][f][j] = self.x[i, f, j].solution_value()
-#         # Fill c matrix
-#         c_matrix = np.zeros(shape=(len(self.data.functions), len(self.data.nodes)))
-#         for j in range(len(self.data.nodes)):
-#             for f in range(len(self.data.functions)):
-#                 c_matrix[f][j] = self.c[f, j].solution_value()
-#         return x_matrix, c_matrix
-
-#     def score(self) -> int:
-#         return self.solver.objective
