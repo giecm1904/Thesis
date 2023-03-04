@@ -13,23 +13,23 @@ from ortools.sat.python import cp_model
 class Data():
     sources: List[str] = []
     nodes: List[str] = []
-    functions: List[str] = []   ## ¿¿¿??? (does this represents carts/catalog/shipping/order/etc...?)
+    functions: List[str] = []   ## ¿¿¿??? (does this represents carts/catalog/shipping/order/etc...?) ## YES
 
     node_memory_matrix: np.array = np.array([])
     function_memory_matrix: np.array = np.array([])
     node_delay_matrix: np.array = np.array([])
     workload_matrix: np.array = np.array([])
-    max_delay_matrix: np.array = np.array([])       # Is it given or calculated as in ppt presentation? Why it is not use in the constraints?
-    response_time_matrix: np.array = np.array([])   # We don't need it because is only use for GPU, right?
+    max_delay_matrix: np.array = np.array([])       # Is it given or calculated as in ppt presentation? Why it is not use in the constraints? ## ITS GIVEN 
+    response_time_matrix: np.array = np.array([])   # We don't need it because is only use for GPU, right? ## DON'T USE IT
     node_cores_matrix: np.array = np.array([])
-    cores_matrix: np.array = np.array([])           # Where is it used?
-    old_allocations_matrix: np.array = np.array([]) # Where is it used? In our case it would be mat_mul?
+    cores_matrix: np.array = np.array([])           # Where is it used? ## DON'T USE IT
+    old_allocations_matrix: np.array = np.array([]) # Where is it used? In our case it would be mat_mul? # IGNORE IT
     core_per_req_matrix: np.array = np.array([])    # u_j [functions x nodes]  or u_j [requests] which one is the best option?
 
     ### gpu_function_memory_matrix: np.array = np.array([])
     ### gpu_node_memory_matrix: np.array = np.array([])
 
-    prev_x = np.array([])  ## ¿¿¿¿¿¿¿¿¿¿??????????
+    prev_x = np.array([])  ## Use by neptune for GPU ....
 
 
     ################## MISSING INPUTS ##################
@@ -54,16 +54,20 @@ class Data():
     while r<R:
         for i in range(len(sources)):
             for f in range(len(function_memory_matrix)):
-                dif = 0
-                if (workload_matrix[f][i]*function_memory_matrix[f])/function_memory_matrix[f]==1:
+                dif = workload_matrix[f][i] 
+                while dif >0:
                     req_dist[f][r]=1
                     r=r+1
-                else:
-                    dif = workload_matrix[f][i] 
-                    while dif >0:
-                        req_dist[f][r]=1
-                        r=r+1
-                        dif = dif-1
+                    dif = dif-1
+                # if (workload_matrix[f][i]*function_memory_matrix[f])/function_memory_matrix[f]==1:
+                #     req_dist[f][r]=1
+                #     r=r+1
+                # else:
+                #     dif = workload_matrix[f][i] 
+                #     while dif >0:
+                #         req_dist[f][r]=1
+                #         r=r+1
+                #         dif = dif-1
 
     #matrix that assignes a function memory to each request [F x N]
     m_request= np.empty((len(function_memory_matrix),R))
@@ -80,6 +84,68 @@ class Data():
                 m_index.append(m_request[f][r])
         
     final_index = sorted(range(len(m_index)), key = lambda a: m_index[a])
+
+
+
+    def haversine(lon1, lat1, lon2, lat2):
+        # Convert decimal degrees to radians 
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+        # Haversine formula 
+        dlon = lon2 - lon1 
+        dlat = lat2 - lat1 
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a)) 
+        r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+        return c * r
+
+    # COVERAGE REQUEST-NODE
+    #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
+    radius = np.full(len(sources), 0.03)
+
+    for i in range(len(sources)):
+        node_latitude = sources.iloc[i]['LATITUDE']
+        node_longitude = sources.iloc[i]['LONGITUDE']
+        temp = []
+        for r in range(R):
+            for u in range(len(U)):
+                if req_u[u][r]==1:
+                    request_latitude = U.iloc[u]['Latitude']
+                    request_longitude = U.iloc[u]['Longitude']
+
+                    dist_geo = haversine(node_longitude, node_latitude, request_longitude, request_latitude)
+                    if dist_geo <= radius[i]:
+                        temp.append(1)
+                    else:
+                        temp.append(0)
+        
+    U_ni.append(temp)
+
+    # DISTANCE BETWEEN NODES
+    #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
+    radius = np.full(len(sources), 0.03)
+
+    for i in range(len(sources)):
+        node1_latitude = sources.iloc[i]['LATITUDE']
+        node1_longitude = sources.iloc[i]['LONGITUDE']
+        temp_dist = []
+        for j in range(len(nodes)):
+            node2_latitude = nodes.iloc[j]['LATITUDE']
+            node2_longitude = nodes.iloc[j]['LONGITUDE']
+
+            dist_geo_nodes = haversine(node1_longitude, node1_latitude, node2_longitude,node2_latitude)
+            temp_dist.append(np.round(dist_geo_nodes,3))
+            
+        node_delay_matrix.append(temp_dist)
+
+    for r1 in range(len(sources)):
+        temp_delay = []
+        for r2 in range(len(nodes)):
+            if r1==r2:
+                temp_delay.append(0)
+            else:
+                temp_delay.append(radius[r1]+radius[r2])
+        max_delay_matrix.append(temp_delay)
 
 
 
@@ -158,68 +224,6 @@ class Input:
                 if cpu_function == gpu_function:
                     self.cpu_function_gpu_map[i] = j
                     break
-
-    def haversine(lon1, lat1, lon2, lat2):
-        # Convert decimal degrees to radians 
-        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-
-        # Haversine formula 
-        dlon = lon2 - lon1 
-        dlat = lat2 - lat1 
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-        c = 2 * asin(sqrt(a)) 
-        r = 6371 # Radius of earth in kilometers. Use 3956 for miles
-        return c * r
-
-    # COVERAGE REQUEST-NODE
-    #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
-    radius = np.full(len(sources), 0.03)
-
-    for i in range(len(sources)):
-        node_latitude = sources.iloc[i]['LATITUDE']
-        node_longitude = sources.iloc[i]['LONGITUDE']
-        temp = []
-        for r in range(R):
-            for u in range(len(U)):
-                if req_u[u][r]==1:
-                    request_latitude = U.iloc[u]['Latitude']
-                    request_longitude = U.iloc[u]['Longitude']
-
-                    dist_geo = haversine(node_longitude, node_latitude, request_longitude, request_latitude)
-                    if dist_geo <= radius[i]:
-                        temp.append(1)
-                    else:
-                        temp.append(0)
-        
-    U_ni.append(temp)
-
-    # DISTANCE BETWEEN NODES
-    #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
-    radius = np.full(len(sources), 0.03)
-
-    for i in range(len(sources)):
-        node1_latitude = sources.iloc[i]['LATITUDE']
-        node1_longitude = sources.iloc[i]['LONGITUDE']
-        temp_dist = []
-        for j in range(len(nodes)):
-            node2_latitude = nodes.iloc[j]['LATITUDE']
-            node2_longitude = nodes.iloc[j]['LONGITUDE']
-
-            dist_geo_nodes = haversine(node1_longitude, node1_latitude, node2_longitude,node2_latitude)
-            temp_dist.append(np.round(dist_geo_nodes,3))
-            
-        node_delay_matrix.append(temp_dist)
-
-    for r1 in range(len(sources)):
-        temp_delay = []
-        for r2 in range(len(nodes)):
-            if r1==r2:
-                temp_delay.append(0)
-            else:
-                temp_delay.append(radius[r1]+radius[r2])
-        max_delay_matrix.append(temp_delay)
-
-
 
     def load_node_memory_matrix(self, matrix: List[int]):
         self.node_memory_matrix = np.array(matrix, dtype=int)
@@ -315,6 +319,14 @@ class Solver:
                     sum([
                         self.x[j, r] for r in data.final_index
                     ]) <= self.c[f, j] * 1000)
+                
+        # CHECK THIS 
+        for j in range(len(data.nodes)):
+            self.model.Add(
+                sum([
+                    self.x[j, r] for r in data.final_index
+                ]) <= self.y[j] * 1000)
+
 
         # The sum of the memory of functions deployed on a node `n` is less than its capacity
         for j in range(len(data.nodes)):
@@ -345,8 +357,8 @@ class Solver:
         for j in range(len(data.nodes)):
             self.model.Add(
                 sum([
-                    self.x[j, r] * self.data.workload_matrix[f, i] * self.data.core_per_req_matrix[f,j] for f in range(len(data.functions)) for i in
-                    range(len(data.sources))
+                    self.x[j, r] * self.data.core_per_req_matrix[f,j] for f in range(len(data.functions)) for r in
+                    range(self.data.final_index)
                 ]) <= self.data.node_cores_matrix[j]*self.y[j]
             ) ### Check the parenthesis for workload_matrix and core_per_req_matrix. The for loop depends on how u is given
 
@@ -392,7 +404,7 @@ class Solver:
         # Hint (speed up solving)
         for j in range(len(self.nodes)):
             for r in self.data.final_index:
-                self.model.AddHint(x[j,r], self.solver.Value(self.x[j,r]))
+                self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
             
         # Constraint previous objective
         self.model.Add(
