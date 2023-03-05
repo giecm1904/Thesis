@@ -34,57 +34,56 @@ class Data():
 
     ################## MISSING INPUTS ##################
 
-    # U: coordinates of users
+    # users_location: coordinates of users
     requests_path = '../eua-dataset/users/'
-    U = pd.read_csv(requests_path + 'users-test.csv')
+    users_location = pd.read_csv(requests_path + 'users-test.csv')
 
     # Amount of request received in time-slot
-    R = np.sum(workload_matrix)
+    requests_received = np.sum(workload_matrix)
 
-    # Set of requests connected to node n
-    U_ni = []
+    # Set of requests within coverage of node i
+    req_node_coverage = []
 
     # Result matrix for allocation of request 'r' in node 'j'
-    x_rj = np.zeros([len(nodes),R])
+    x_rj = np.zeros([len(nodes),requests_received])
 
-    # Identifies which user sent the request [U x R]
-    req_u=[[1,0,0,0,0,0,0,0],
-           [0,1,0,0,0,0,0,0],
-           [0,0,1,0,0,0,0,0],
-           [0,0,0,1,0,0,0,0],
-           [0,0,0,0,1,0,0,0],
-           [0,0,0,0,0,1,0,0],
-           [0,0,0,0,0,0,1,0],
-           [0,0,0,0,0,0,0,1]]
+    # Identifies which user sent the request [users_location x requests_received]
+    req_by_user=[[1,0,0,0,0,0,0,0],
+                 [0,1,0,0,0,0,0,0],
+                 [0,0,1,0,0,0,0,0],
+                 [0,0,0,1,0,0,0,0],
+                 [0,0,0,0,1,0,0,0],
+                 [0,0,0,0,0,1,0,0],
+                 [0,0,0,0,0,0,1,0],
+                 [0,0,0,0,0,0,0,1]]
 
-    # Show which requests are assigned to each function [F x R]
-    req_dist = np.zeros([len(function_memory_matrix),R])
+    # Show which requests are assigned to each function [F x requests_received]
+    req_distribution = np.zeros([len(function_memory_matrix),requests_received])
 
     r = 0
-    while r<R:
+    while r<requests_received:
         for i in range(len(sources)):
             for f in range(len(functions)):
                 dif = workload_matrix[f][i] 
                 while dif >0:
-                    req_dist[f][r]=1
+                    req_distribution[f][r]=1
                     r=r+1
                     dif = dif-1
 
-    # Matrix that assignes a function memory to each request [F x N]
-    m_request = np.empty((len(function_memory_matrix),R))
+    # Matrix that assignes a function memory to each request [functions x requests]
+    memory_req_distribution = np.empty((len(function_memory_matrix),requests_received))
     for f in range(len(functions)):
-        for r in range(R):
-            m_request[f][r] = function_memory_matrix[f]*req_dist[f][r]
+        for r in range(requests_received):
+            memory_req_distribution[f][r] = function_memory_matrix[f]*req_distribution[f][r]
 
     # Sort the requests by their memory requirement --- returns position of the [] where request is found
     m_index = []
-
-    for r in range(R):
+    for r in range(requests_received):
         for f in range(len(functions)):
-            if m_request[f][r]!=0:
-                m_index.append(m_request[f][r])
+            if memory_req_distribution[f][r]!=0:
+                m_index.append(memory_req_distribution[f][r])
         
-    final_index = np.argsort(m_index)
+    requests_index = np.argsort(m_index)
 
 
     def haversine(lon1, lat1, lon2, lat2):
@@ -107,18 +106,18 @@ class Data():
         node_latitude = sources.iloc[i]['LATITUDE']
         node_longitude = sources.iloc[i]['LONGITUDE']
         temp = []
-        for r in range(R):
-            for u in range(len(U)):
-                if req_u[u][r]==1:
-                    request_latitude = U.iloc[u]['Latitude']
-                    request_longitude = U.iloc[u]['Longitude']
+        for r in range(requests_received):
+            for u in range(len(users_location)):
+                if req_by_user[u][r]==1:
+                    request_latitude = users_location.iloc[u]['Latitude']
+                    request_longitude = users_location.iloc[u]['Longitude']
                     dist_geo = haversine(node_longitude, node_latitude, request_longitude, request_latitude)
                     if dist_geo <= radius[i]:
                         temp.append(1)
                     else:
                         temp.append(0)
         
-    U_ni.append(temp)
+    req_node_coverage.append(temp)
 
     # DISTANCE BETWEEN NODES
     for i in range(len(sources)):
@@ -287,7 +286,7 @@ class Solver:
         # Initialize variable
         self.log("Initializing variables...")
         for j in range(len(data.nodes)):
-            for r in data.final_index:
+            for r in data.requests_index:
                     self.x[j, r] = self.model.NewBoolVar(f'c[{j}][{r}]')
         for f in range(len(data.functions)):
             for j in range(len(data.nodes)):
@@ -298,14 +297,14 @@ class Solver:
         # Initialize constraints
         self.log("Initializing constraints...")
         #Controls if request r can be managed by node j
-        for r in data.final_index:
+        for r in data.requests_index:
             for j in range(len(data.nodes)):
-                if data.U_ni[j][r]==0:
+                if data.req_node_coverage[j][r]==0:
                     self.model.Add(self.x[j, r]==0)
 
         #Proximity constraint (node i-node j) 
         for i in range(len(data.sources)):
-            for r in data.final_index:
+            for r in data.requests_index:
                 for j in range(len(data.nodes)):
                         if data.node_delay_matrix[i][j]> data.max_delay_matrix[i][j]:
                             self.model.Add(
@@ -324,13 +323,13 @@ class Solver:
         for j in range(len(data.nodes)):
             self.model.Add(
                 sum([
-                    self.x[j, r] * self.data.core_per_req_matrix[r,j] for r in self.data.final_index
+                    self.x[j, r] * self.data.core_per_req_matrix[r,j] for r in self.data.requests_index
                 ]) <= self.data.node_cores_matrix[j]*self.y[j]
             ) ### Check the parenthesis for workload_matrix and core_per_req_matrix. The for loop depends on how u is given
 
 
         # Contraint family (each request can be allocated just once)
-        for r in data.final_index:
+        for r in data.requests_index:
             self.model.Add(sum([self.x[j, r] for j in range(len(data.nodes))]) <= 1)
 
         # If a function `f` is deployed on node `n` then c[f,n] is True
@@ -338,14 +337,14 @@ class Solver:
             for j in range(len(data.nodes)):
                 self.model.Add(
                     sum([
-                        self.x[j, r] for r in data.final_index
+                        self.x[j, r] for r in data.requests_index
                     ]) <= self.c[f, j] * 1000)
                 
         # If request 'r' is allocated to node j then y[j] is 1
         for j in range(len(data.nodes)):
             self.model.Add(
                 sum([
-                    self.x[j, r] for r in data.final_index
+                    self.x[j, r] for r in data.requests_index
                 ]) <= self.y[j] * 1000)
 
 
@@ -361,7 +360,7 @@ class Solver:
 
         # Objective function
         for j in range(len(self.data.nodes)):
-            for r in self.data.final_index:
+            for r in self.data.requests_index:
                 objective_max.append(self.x[j,r])
         self.model.Maximize(sum(objective_max))
 
@@ -370,13 +369,13 @@ class Solver:
 
         # Hint (speed up solving)
         for j in range(len(self.data.nodes)):
-            for r in self.data.final_index:
+            for r in self.data.requests_index:
                 self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
             
         # Constraint previous objective
         self.model.Add(
             sum([
-                self.x[j, r] for j in range(len(self.data.nodes)) for r in self.data.final_index
+                self.x[j, r] for j in range(len(self.data.nodes)) for r in self.data.requests_index
             ]) == round(self.solver.ObjectiveValue())
         ) 
 
@@ -392,17 +391,17 @@ class Solver:
         self.log(f"Problem solved with status {status}")
         # DISPLAY THE SOLUTION-----------------------------------
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-            print('SOLUTION:')
-            print(f'Objective value: {max_requests} requests have been allocated to {self.solver.ObjectiveValue()} nodes\n')
-            for r in self.data.final_index:
+            #print('SOLUTION:')
+            #print(f'Objective value: {max_requests} requests have been allocated to {self.solver.ObjectiveValue()} nodes\n')
+            for r in self.data.requests_index:
                 for j in range(len(self.data.nodes)):
                     if int(self.solver.Value(self.x[j,r])) == 1:
-                        print(f'x[{j},{r}]: Request {r} has been allocated to node {j}')
+                        #print(f'x[{j},{r}]: Request {r} has been allocated to node {j}')
                         self.data.x_rj[j][r]=1
 
     def results(self) -> Tuple[np.array, np.array]:
         # Fill x matrix
-        mat_mul = np.dot(self.data.req_dist,np.transpose(self.data.x_rj))
+        mat_mul = np.dot(self.data.req_distribution,np.transpose(self.data.x_rj))
         x_matrix = np.empty(shape=(len(self.data.functions),len(self.data.nodes)))
         for j in range(len(self.data.nodes)):
             for f in range(len(self.data.functions)):
