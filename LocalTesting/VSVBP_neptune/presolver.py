@@ -249,21 +249,6 @@ class Solver:
                         r=r+1
                         dif = dif-1
 
-        # Matrix that assignes a function memory to each request [functions x requests]
-        memory_req_distribution = np.empty((int(len(data.function_memory_matrix)),int(self.requests_received)))
-        for f in range(len(data.functions)):
-            for r in range(self.requests_received):
-                memory_req_distribution[f][r] = data.function_memory_matrix[f]*self.req_distribution[f][r]
-        
-        # Sort the requests by their memory requirement --- returns position of the [] where request is found
-        m_index = []
-        for r in range(self.requests_received):
-            for f in range(len(data.functions)):
-                if memory_req_distribution[f][r]!=0:
-                    m_index.append(memory_req_distribution[f][r])
-            
-        self.requests_index = np.argsort(m_index)
-
         # COVERAGE REQUEST-NODE
         #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
         radius = np.full(len(data.sources), 0.03)
@@ -288,7 +273,7 @@ class Solver:
         # Initialize variable
         self.log("Initializing variables...")
         for j in range(len(data.nodes)):
-            for r in self.requests_index:
+            for r in range(self.requests_received):
                     self.x[j, r] = self.model.NewBoolVar(f'c[{j}][{r}]')
         for f in range(len(data.functions)):
             for j in range(len(data.nodes)):
@@ -299,14 +284,14 @@ class Solver:
         # Initialize constraints
         self.log("Initializing constraints...")
         #Controls if request r can be managed by node j
-        for r in self.requests_index:
+        for r in range(self.requests_received):
             for j in range(len(data.nodes)):
                 if req_node_coverage[j][r]==0:
                     self.model.Add(self.x[j, r]==0) 
 
         #Proximity constraint (node i-node j) 
         for i in range(len(data.sources)):
-            for r in self.requests_index:
+            for r in range(self.requests_received):
                 for f in range(len(data.functions)):
                     for j in range(len(data.nodes)):
                         if data.node_delay_matrix[i][j]> data.max_delay_matrix[f] and loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1:
@@ -326,11 +311,11 @@ class Solver:
         for j in range(len(data.nodes)):
              self.model.Add(
                  sum([
-                     self.x[j, r] * data.core_per_req_matrix[f,j]*self.req_distribution[f][r] for r in self.requests_index for f in range(len(data.functions))
+                     self.x[j, r] * data.core_per_req_matrix[f,j]*self.req_distribution[f][r] for r in range(self.requests_received) for f in range(len(data.functions))
                  ]) <= data.node_cores_matrix[j]*self.y[j])
 
         # Contraint family (each request can be allocated just once)
-        for r in self.requests_index:
+        for r in range(self.requests_received):
             self.model.Add(sum([self.x[j, r] for j in range(len(data.nodes))]) <= 1)
 
         # If a function `f` is deployed on node `n` then c[f,n] is True
@@ -338,14 +323,14 @@ class Solver:
             for j in range(len(data.nodes)):
                 self.model.Add(
                     sum([
-                        self.x[j, r]* self.req_distribution[f][r] for r in self.requests_index
+                        self.x[j, r]* self.req_distribution[f][r] for r in range(self.requests_received)
                     ]) <= self.c[f, j] * 1000)
         
         # If request 'r' is allocated to node j then y[j] is 1
         for j in range(len(data.nodes)):
             self.model.Add(
                 sum([
-                    self.x[j, r] for r in self.requests_index
+                    self.x[j, r] for r in range(self.requests_received)
                 ]) <= self.y[j] * 1000) 
         
         # Allocates at least one instance for each function (even with no incoming requests)
@@ -366,7 +351,7 @@ class Solver:
 
         # Objective function
         for j in range(len(self.data.nodes)):
-            for r in self.requests_index:
+            for r in range(self.requests_received):
                 objective_max.append(self.x[j,r])
         self.model.Maximize(sum(objective_max))
 
@@ -375,13 +360,13 @@ class Solver:
 
         # Hint (speed up solving)
         for j in range(len(self.data.nodes)):
-            for r in self.requests_index:
+            for r in range(self.requests_received):
                 self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
             
         # Constraint previous objective
         self.model.Add(
             sum([
-                self.x[j, r] for j in range(len(self.data.nodes)) for r in self.requests_index
+                self.x[j, r] for j in range(len(self.data.nodes)) for r in range(self.requests_received)
             ]) == round(self.solver.ObjectiveValue())
         ) 
 
@@ -401,7 +386,7 @@ class Solver:
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             print('SOLUTION:')
             print(f'Objective value: {max_requests} requests have been allocated to {self.solver.ObjectiveValue()} nodes\n')
-            for r in self.requests_index:
+            for r in range(self.requests_received):
                 for j in range(len(self.data.nodes)):
                     if int(self.solver.Value(self.x[j,r])) == 1:
                         print(f'x[{j},{r}]: Request {r} has been allocated to node {j}')
