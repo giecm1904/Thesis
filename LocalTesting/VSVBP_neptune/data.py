@@ -5,7 +5,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 import presolver
-import thesolver
+#import thesolver
 from output import convert_x_matrix, convert_c_matrix
 
 cpu_coeff = 1.3
@@ -170,79 +170,79 @@ def data_to_solver_input(schedule_input):
     cpu_presolver.solve()
     cpu_presolver_x, cpu_presolver_c = cpu_presolver.results()
 
-    print("CPU presolver routing rules")
-    print(cpu_presolver_x)
-    print("CPU presolver allocations")
-    print(cpu_presolver_c)
+    #print("CPU presolver routing rules")
+    #print(cpu_presolver_x)
+    #print("CPU presolver allocations")
+    #print(cpu_presolver_c)
 
-    cpu_presolver_score = cpu_presolver.score()
-    print("CPU presolver score")
-    print(cpu_presolver_score)
+    #cpu_presolver_score = cpu_presolver.score()
+    #print("CPU presolver score")
+    #print(cpu_presolver_score)
 
     # The solving
-    cpu_data = thesolver.Data(nodes, nodes, functions)
-    cpu_data.node_memory_matrix = np.array(node_memories)
-    cpu_data.function_memory_matrix = np.array(function_memories)
-    cpu_data.node_delay_matrix = np.array(node_delay_matrix)
-    cpu_data.workload_matrix = np.array(workload_on_source_matrix) * cpu_coeff
-    cpu_data.max_delay_matrix = np.array(max_delay_matrix)
-    cpu_data.response_time_matrix = np.array(response_time_matrix)
-    cpu_data.node_cores_matrix = np.array(node_cores)
-    cpu_data.cores_matrix = np.array(cores_matrix)
-    cpu_data.old_allocations_matrix = np.array(old_cpu_allocations)
-    cpu_data.old_allocations_matrix = np.array(cpu_presolver_c)
-    cpu_data.core_per_req_matrix = np.array(core_per_req_matrix)
-    cpu_data.max_score = cpu_presolver_score
+    #cpu_data = thesolver.Data(nodes, nodes, functions)
+    # cpu_data.node_memory_matrix = np.array(node_memories)
+    # cpu_data.function_memory_matrix = np.array(function_memories)
+    # cpu_data.node_delay_matrix = np.array(node_delay_matrix)
+    # cpu_data.workload_matrix = np.array(workload_on_source_matrix) * cpu_coeff
+    # cpu_data.max_delay_matrix = np.array(max_delay_matrix)
+    # cpu_data.response_time_matrix = np.array(response_time_matrix)
+    # cpu_data.node_cores_matrix = np.array(node_cores)
+    # cpu_data.cores_matrix = np.array(cores_matrix)
+    # cpu_data.old_allocations_matrix = np.array(old_cpu_allocations)
+    # cpu_data.old_allocations_matrix = np.array(cpu_presolver_c)
+    # cpu_data.core_per_req_matrix = np.array(core_per_req_matrix)
+    # cpu_data.max_score = cpu_presolver_score
 
-    cpu_thesolver = thesolver.Solver(verbose=False)
-    print(cpu_data.old_allocations_matrix)
-    cpu_thesolver.load_input(cpu_data)
-    solved = cpu_thesolver.solve()
-    if solved:
-        cpu_thesolver_x, cpu_thesolver_c = cpu_thesolver.results()
+    #cpu_thesolver = thesolver.Solver(verbose=False)
+    #print(cpu_data.old_allocations_matrix)
+    #cpu_thesolver.load_input(cpu_data)
+    #solved = cpu_thesolver.solve()
+    #if solved:
+        #cpu_thesolver_x, cpu_thesolver_c = cpu_thesolver.results()
 
-        print("CPU thesolver routing rules")
-        print(cpu_thesolver_x)
-        print("CPU thesolver allocations")
-        print(cpu_thesolver_c)
+        #print("CPU thesolver routing rules")
+        #print(cpu_thesolver_x)
+        #print("CPU thesolver allocations")
+        #print(cpu_thesolver_c)
 
-        cpu_thesolver_score = cpu_thesolver.score()
-        print("CPU thesolver score")
-        print(cpu_thesolver_score)
+        #cpu_thesolver_score = cpu_thesolver.score()
+        #print("CPU thesolver score")
+        #print(cpu_thesolver_score)
 
-        return convert_x_matrix(cpu_thesolver_x, nodes, functions, nodes), convert_c_matrix(cpu_thesolver_c, functions, nodes)
+        #return convert_x_matrix(cpu_thesolver_x, nodes, functions, nodes), convert_c_matrix(cpu_thesolver_c, functions, nodes)
 
     # The solving - part 2
-    print("STARTING SOLVING PART 2")
-    cpu_data = thesolver.Data(nodes, nodes, functions)
-    cpu_data.node_memory_matrix = np.array(node_memories)
-    cpu_data.function_memory_matrix = np.array(function_memories)
-    cpu_data.node_delay_matrix = np.array(node_delay_matrix)
-    cpu_data.workload_matrix = np.array(workload_on_source_matrix) * cpu_coeff
-    cpu_data.max_delay_matrix = np.array(max_delay_matrix)
-    cpu_data.response_time_matrix = np.array(response_time_matrix)
-    cpu_data.node_cores_matrix = np.array(node_cores)
-    cpu_data.cores_matrix = np.array(cores_matrix)
-    cpu_data.old_allocations_matrix = np.array(cpu_presolver_c)
-    cpu_data.core_per_req_matrix = np.array(core_per_req_matrix)
-    cpu_data.max_score = cpu_presolver_score
+    # print("STARTING SOLVING PART 2")
+    # cpu_data = thesolver.Data(nodes, nodes, functions)
+    # cpu_data.node_memory_matrix = np.array(node_memories)
+    # cpu_data.function_memory_matrix = np.array(function_memories)
+    # cpu_data.node_delay_matrix = np.array(node_delay_matrix)
+    # cpu_data.workload_matrix = np.array(workload_on_source_matrix) * cpu_coeff
+    # cpu_data.max_delay_matrix = np.array(max_delay_matrix)
+    # cpu_data.response_time_matrix = np.array(response_time_matrix)
+    # cpu_data.node_cores_matrix = np.array(node_cores)
+    # cpu_data.cores_matrix = np.array(cores_matrix)
+    # cpu_data.old_allocations_matrix = np.array(cpu_presolver_c)
+    # cpu_data.core_per_req_matrix = np.array(core_per_req_matrix)
+    # cpu_data.max_score = cpu_presolver_score
 
-    cpu_thesolver = thesolver.Solver(verbose=False)
-    print(cpu_data.old_allocations_matrix)
-    cpu_thesolver.load_input(cpu_data)
-    solved = cpu_thesolver.solve()
-    if solved:
-        cpu_thesolver_x, cpu_thesolver_c = cpu_thesolver.results()
+    # cpu_thesolver = thesolver.Solver(verbose=False)
+    # print(cpu_data.old_allocations_matrix)
+    # cpu_thesolver.load_input(cpu_data)
+    # solved = cpu_thesolver.solve()
+    # if solved:
+    #     cpu_thesolver_x, cpu_thesolver_c = cpu_thesolver.results()
 
-        print("CPU thesolver routing rules")
-        print(cpu_thesolver_x)
-        print("CPU thesolver allocations")
-        print(cpu_thesolver_c)
+    #     print("CPU thesolver routing rules")
+    #     print(cpu_thesolver_x)
+    #     print("CPU thesolver allocations")
+    #     print(cpu_thesolver_c)
 
-        cpu_thesolver_score = cpu_thesolver.score()
-        print("CPU thesolver score")
-        print(cpu_thesolver_score)
+    #     cpu_thesolver_score = cpu_thesolver.score()
+    #     print("CPU thesolver score")
+    #     print(cpu_thesolver_score)
 
-        return convert_x_matrix(cpu_thesolver_x, nodes, functions, nodes), convert_c_matrix(cpu_thesolver_c, functions, nodes)
-    else:
-        return convert_x_matrix(cpu_presolver_x, nodes, functions, nodes), convert_c_matrix(cpu_presolver_c, functions, nodes)
+    #     return convert_x_matrix(cpu_thesolver_x, nodes, functions, nodes), convert_c_matrix(cpu_thesolver_c, functions, nodes)
+    # else:
+    return convert_x_matrix(cpu_presolver_x, nodes, functions, nodes), convert_c_matrix(cpu_presolver_c, functions, nodes)

@@ -203,7 +203,7 @@ class Solver:
 
         # users_location: coordinates of users
         users_location = pd.read_csv('users-test.csv') 
-        N_src = pd.read_csv('serverstest.csv')
+        N_src = pd.read_csv('serverstest_3.csv')
 
         data.sources = N_src
         data.nodes = N_src
@@ -235,8 +235,8 @@ class Solver:
         self.req_distribution = np.zeros([int(len(data.functions)),int(self.requests_received)])
 
         print("--------NODES_LEN [N]--------------",len(data.sources))
-        print("--------REQUESTS [R]--------------",self.requests_received)
-        print("--------M_F_LEN [F]--------------",len(data.function_memory_matrix))
+        print("--------REQUESTS [R]---------------",self.requests_received)
+        print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
 
         r = 0
         while r<self.requests_received:
@@ -428,7 +428,7 @@ class Solver:
                         x_matrix[i][f][j]=c_matrix[f][j]/c_matrix.sum(axis=1)[f]
 
         print("---------------X_MATRIX [FxN]----------------")
-        print(x_matrix)
+        print(x_matrix[0])
 
         return x_matrix, c_matrix
 
