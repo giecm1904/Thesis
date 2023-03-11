@@ -1,2 +1,2 @@
-docker build -t adriatico/mcf-allocation-algorithm-rest:dev .
-docker push adriatico/mcf-allocation-algorithm-rest:dev
+docker build -t adriatico/vsvbp-prime-wodata-rest:dev .
+docker push adriatico/vsvbp-prime-wodata-rest:dev

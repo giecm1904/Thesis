@@ -11,6 +11,7 @@ RUN pip install -r requirements.txt
 
 COPY *.py ./
 COPY *.sh ./
+COPY *.csv ./
 RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["/bin/bash", "./entrypoint.sh"]
