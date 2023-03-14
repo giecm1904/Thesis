@@ -61,7 +61,6 @@ input = {
     }
 }
 
-
 # input = {
 #     'community': 'community-worker',
 #     'namespace': 'openfaas-fn',
