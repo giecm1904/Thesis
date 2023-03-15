@@ -378,14 +378,15 @@ class Solver:
 
         return positions_T
     
-    def du_dt_function(self,timeStep,positions):
+    def du_dt_function(self,time,positions):
         du_Dt=[] # Distance between danger and user
         for j in range(self.num_users):
-            user_latitude=positions[timeStep][j][0]
-            user_longitude=positions[timeStep][j][1]
+            user_latitude=positions[time][j][0]
+            user_longitude=positions[time][j][0]
             user_coordinates = (user_latitude,user_longitude)
             dist_geoDanger = geopy.distance.geodesic(user_coordinates, self.D).km
             du_Dt.append(dist_geoDanger)
+        
         return du_Dt
 
     def get_truncated_normal(self,mean, sd, low, upp):
@@ -535,28 +536,6 @@ class Solver:
                         r=r+1
                         dif = dif-1
 
-        # COVERAGE REQUEST-NODE
-        #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
-        # radius = np.full(data.sources, 0.03)
-
-        for i in range(data.sources):
-            node_latitude = node_coords[i,0]
-            node_longitude = node_coords[i,1]
-            temp = []
-            for r in range(self.requests_received):
-                for u in range(self.num_users):
-                    if self.req_by_user[u][r]==1:
-                        request_latitude = user_coords[u,0]
-                        request_longitude = user_coords[u,1]
-                        dist_geo = self.haversine(node_longitude, node_latitude, request_longitude, request_latitude)
-                        if dist_geo <= radius[0]:
-                            temp.append(1)
-                        else:
-                            temp.append(0)
-            
-            self.req_node_coverage.append(temp)
-
-        print("COVERAGE---------------", self.req_node_coverage)
         #Obtain criticality
         self.U_per = np.full(self.num_users,0.2)  # Perception range of individual uj in km
         self.nej = np.random.uniform(0,1,self.num_users) # Emotional fluctuation of uj ---> nej ∈ (0, 1)
@@ -567,8 +546,34 @@ class Solver:
         du_dt_temp=self.du_dt_function(0,live_positions)
         self.requests_index,self.CR_matrix = self.criticality(0,du_dt_temp)
         print("-------Criticality---------",self.CR_matrix)
-        print("index Criticality", self.requests_index)
-         # Initialize variable
+        # COVERAGE REQUEST-NODE
+        #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
+        # radius = np.full(data.sources, 0.03)
+
+        live_positions_requests =[]
+        for r in range(self.requests_received):
+            for u in range(self.num_users):
+                if self.req_by_user[u][r]==1:
+                    live_positions_requests.append(live_positions[0][u])
+        
+        for i in range(data.sources):
+            node_latitude = node_coords[i,0]
+            node_longitude = node_coords[i,1]
+            temp = []
+            for r in range(self.requests_received):
+                for u in range(self.num_users):
+                    if self.req_by_user[u][r]==1:
+                        request_latitude = live_positions_requests[r][0]
+                        request_longitude = live_positions_requests[r][1]
+                        dist_geo = self.haversine(node_longitude, node_latitude, request_longitude, request_latitude)
+                        if dist_geo <= radius[0]:
+                            temp.append(1)
+                        else:
+                            temp.append(0)
+            
+            self.req_node_coverage.append(temp)
+        
+        # Initialize variable
         self.x_jr = np.zeros(shape=(data.nodes,int(self.requests_received)))
         self.c_fj = np.zeros(shape=(len(data.functions),data.nodes))
         self.y_j = np.zeros(data.nodes)
