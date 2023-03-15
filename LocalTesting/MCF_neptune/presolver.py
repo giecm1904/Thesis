@@ -10,6 +10,12 @@ from math import radians, cos, sin, asin, sqrt, isnan
 import random
 from ortools.sat.python import cp_model
 
+from sklearn import manifold
+from matplotlib import pyplot as plt
+from pyproj import Transformer
+import geopy.distance
+import math
+
 class Data():
     sources: List[str] = []
     nodes: List[str] = []
@@ -181,6 +187,74 @@ class Solver:
     # moved_from = {}
     # moved_to = {}
 
+    transformer = Transformer.from_crs('epsg:3857', 'epsg:4326')
+
+    def cartesian_to_geo(self, x, y):
+        return self.transformer.transform(x, y)
+
+    def to_km_distance(self, coords):
+        size = len(coords) # No of nodes
+        distances = np.zeros((size, size))
+        for i in range(size):
+            for j in range(size):
+                distances[i, j] = geopy.distance.geodesic(coords[i], coords[j]).km # ??
+        return distances
+    
+    def km_to_deg(self, d):
+        earth_radius = 6371
+        return 180 * d / (np.pi * earth_radius)
+
+    def delay_to_geo(self, delay_matrix): # Establish the coordinates of each server according to the delay matrix
+        size = len(delay_matrix) # No of nodes
+        mds_model = manifold.MDS(n_components=2, random_state=0, dissimilarity='precomputed', normalized_stress="auto") # MDS(dissimilarity='precomputed', normalized_stress='auto', random_state=0)
+        mds_model.fit(delay_matrix)
+        coords = mds_model.fit_transform(delay_matrix) # [[-711.64291427 -379.86399722][..][..]]
+        for i in range(size):
+            coords[i] = self.cartesian_to_geo(*coords[i]) # [[-0.0034123763 -0.0063927971][..][..]]
+        return coords
+    
+    def get_radius(self, coords, scale_factor = 0.9): # The greater the scale_factor the higher the intersection between the nodes
+        size = len(coords) # No of nodes
+        node_rad_scale_factor = math.sqrt(math.sqrt(size)) / scale_factor 
+        distances = self.to_km_distance(coords)
+        distances = np.tril(distances, k=0) # distance in km between the nodes
+        average_distance = np.sum(distances)/((size*size)/2-size/2)
+        km_radius = average_distance/node_rad_scale_factor
+        deg_radius = self.km_to_deg(km_radius)
+        return km_radius, deg_radius
+
+    def place_users_close_to_nodes(self, users: int, node_coords):
+        size = len(node_coords)
+        user_coords = []
+        radius = self.get_radius(node_coords)[1]
+        for i in range(users):
+            node_coord = node_coords[random.choice(range(size))]
+            user_coord = []
+            alpha = 2 * math.pi * random.random()
+            r = radius * random.random()
+            user_coord.append(node_coord[0] + r*math.cos(alpha))
+            user_coord.append(node_coord[1] + r*math.sin(alpha))
+            user_coords.append(user_coord)
+        return np.array(user_coords)
+
+    def plot(self, node_coords, user_coords):
+        size = len(node_coords)
+        colors = ['r'] * size
+        sizes = [100] * size
+        ax = plt.gca()
+
+        ax.axis("equal")
+        radius = self.get_radius(node_coords)[1]
+        plt.scatter(user_coords[:,0], user_coords[:,1])
+
+        for coord in node_coords:
+            cir = plt.Circle(coord, radius, color='r', fill=False, linewidth=2)
+            ax.add_patch(cir)
+        
+        plt.scatter(node_coords[:,0], node_coords[:,1], c=colors, s=sizes, edgecolor='black')
+
+        plt.show()
+      
     def haversine(self, lon1, lat1, lon2, lat2):
         # Convert decimal degrees to radians 
         lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -205,15 +279,34 @@ class Solver:
         ################## MISSING INPUTS ##################
 
         # users_location: coordinates of users
-        users_location = pd.read_csv('users-test.csv') 
-        N_src = pd.read_csv('serverstest.csv')
+        #users_location = pd.read_csv('users-test.csv') 
+        #N_src = pd.read_csv('serverstest.csv')
 
-        data.sources = N_src
-        data.nodes = N_src
+        ################## MISSING INPUTS ##################
+        # EXAMPLE USAGE
+        max_delay = 2000 # millis
+        num_nodes = 3 # random.randint(3, 20) # gen some nodes
+        num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
+
+        # creates a diagonal matrix of delays (in Neptune this is given)
+        b = np.random.randint(0, max_delay, size=(num_nodes,num_nodes))
+        delay_matrix = (b + b.T)/2
+        np.fill_diagonal(delay_matrix, 0)
+
+        # print("####### DELAY_MATRIX ######")
+        # print(delay_matrix)
+        node_coords = self.delay_to_geo(delay_matrix)
+        radius = self.get_radius(node_coords)
+        print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
+        user_coords = self.place_users_close_to_nodes(num_users, node_coords)
+        self.plot(node_coords, user_coords)
+
+        data.sources = num_nodes
+        data.nodes = num_nodes
 
         # Amount of request received in time-slot
         for f in range(len(data.functions)):
-            for i in range(len(data.sources)):
+            for i in range(data.sources):
                 data.workload_matrix[f][i]=round(data.workload_matrix[f][i])
         self.requests_received = int(np.sum(data.workload_matrix)) 
         
@@ -229,18 +322,18 @@ class Solver:
                     [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0]]
         
         # 1 if request r arrives to node i [N x R]
-        self.loc_arrival_r=np.zeros([int(len(data.sources)),int(self.requests_received)])
+        self.loc_arrival_r=np.zeros([int(data.sources),int(self.requests_received)])
 
         # Show which requests are assigned to each function [F x requests_received]
         self.req_distribution = np.zeros([int(len(data.functions)),int(self.requests_received)])
 
-        print("--------NODES_LEN [N]--------------",len(data.sources))
+        print("--------NODES_LEN [N]--------------",data.sources)
         print("--------REQUESTS [R]---------------",self.requests_received)
         print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
 
         r = 0
         while r<self.requests_received:
-            for i in range(len(data.sources)):
+            for i in range(data.sources):
                 for f in range(len(data.functions)):
                     dif = data.workload_matrix[f][i]
                     while dif >0:
@@ -270,18 +363,18 @@ class Solver:
 
         # COVERAGE REQUEST-NODE
         #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
-        radius = np.full(len(data.sources), 0.03)
-        for i in range(len(data.sources)):
-            node_latitude = data.sources.iloc[i]['LATITUDE']
-            node_longitude = data.sources.iloc[i]['LONGITUDE']
+        #radius = np.full(len(data.sources), 0.03)
+        for i in range(data.sources):
+            node_latitude = node_coords[i,0]
+            node_longitude = node_coords[i,1]
             temp = []
             for r in range(self.requests_received):
-                for u in range(len(users_location)):
+                for u in range(num_users):
                     if req_by_user[u][r]==1:
-                        request_latitude = users_location.iloc[u]['Latitude']
-                        request_longitude = users_location.iloc[u]['Longitude']
+                        request_latitude = user_coords[u,0]
+                        request_longitude = user_coords[u,1]
                         dist_geo = self.haversine(node_longitude, node_latitude, request_longitude, request_latitude)
-                        if dist_geo <= radius[i]:
+                        if dist_geo <= radius[0]:
                             temp.append(1)
                         else:
                             temp.append(0)
@@ -289,10 +382,10 @@ class Solver:
             self.req_node_coverage.append(temp)
 
         # Initialize variable
-        self.x_jr = np.zeros(shape=(len(data.nodes),int(self.requests_received)))
-        self.c_fj = np.zeros(shape=(len(data.functions),len(data.nodes)))
-        self.y_j = np.zeros(len(data.nodes))
-        self.S_active = np.zeros(shape=(len(data.functions),len(data.nodes)))
+        self.x_jr = np.zeros(shape=(data.nodes,int(self.requests_received)))
+        self.c_fj = np.zeros(shape=(len(data.functions),data.nodes))
+        self.y_j = np.zeros(data.nodes)
+        self.S_active = np.zeros(shape=(len(data.functions),data.nodes))
         
 
     def log(self, msg: str):
@@ -302,7 +395,7 @@ class Solver:
     def solve(self):
         # Starting to solve
         temp_req_index=0
-        index_distribution = np.zeros(len(self.data.nodes))
+        index_distribution = np.zeros(self.data.nodes)
         for j in range(len(self.data.node_cores_matrix)):
             index_distribution[j] = self.data.node_cores_matrix[j]
         
@@ -331,7 +424,7 @@ class Solver:
                                     if sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp]: #core constraint
                                         print("✓ core constraint ")
                                         print("CORE REQ: ",sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r] )
-                                        for i in range(len(self.data.sources)):
+                                        for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j_temp]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -354,7 +447,7 @@ class Solver:
                                     if (sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])<=(self.data.node_cores_matrix[j]) : #core constraint
                                         print("✓ core constraint ")
                                         print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])
-                                        for i in range(len(self.data.sources)):
+                                        for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -382,7 +475,7 @@ class Solver:
                                     if sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_active]: #core constraint
                                         print("✓ core constraint ")
                                         print("CORE REQ: ",sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r])
-                                        for i in range(len(self.data.sources)):
+                                        for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j_temp_active]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -401,7 +494,7 @@ class Solver:
                                 if sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r]<= (self.data.node_cores_matrix[j]): #core constraint
                                     print("✓ core constraint ")
                                     print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r] )
-                                    for i in range(len(self.data.sources)):
+                                    for i in range(self.data.sources):
                                         if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                             print("✓ delay constraint, arrived to node: ", i)
                                             loc=1
@@ -433,15 +526,15 @@ class Solver:
     
             if all(self.c_fj[f,:]==0): #when there are no requests
                 print(" **ENTRO CONDICION VACIO 2")
-                rand_node= np.random.choice(range(len(self.data.sources)))
+                rand_node= np.random.choice(range(self.data.sources))
                 self.c_fj[f][rand_node]=1
                 self.S_active[f][rand_node]=1
                 self.y_j[rand_node]=1
 
     def results(self) -> Tuple[np.array, np.array]:
         # Fill c matrix
-        c_matrix = np.empty(shape=(len(self.data.functions), len(self.data.nodes)))
-        for j in range(len(self.data.nodes)):
+        c_matrix = np.empty(shape=(len(self.data.functions), self.data.nodes))
+        for j in range(self.data.nodes):
             for f in range(len(self.data.functions)):
                 c_matrix[f][j] = self.c_fj[f][j]
         
@@ -450,9 +543,9 @@ class Solver:
         
         # Fill x matrix
         mat_mul = np.dot(self.req_distribution,np.transpose(self.x_jr))
-        x_matrix = np.empty(shape=(len(self.data.sources),len(self.data.functions),len(self.data.nodes)))
-        for i in range(len(self.data.sources)):
-            for j in range(len(self.data.nodes)):
+        x_matrix = np.empty(shape=(self.data.sources,len(self.data.functions),self.data.nodes))
+        for i in range(self.data.sources):
+            for j in range(self.data.nodes):
                 for f in range(len(self.data.functions)):
                     if sum(mat_mul[f])==0:
                         x_matrix[i][f][j] = 0
