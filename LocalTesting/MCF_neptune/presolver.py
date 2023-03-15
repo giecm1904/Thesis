@@ -284,7 +284,7 @@ class Solver:
         ################## MISSING INPUTS ##################
         # EXAMPLE USAGE
         max_delay = 2000 # millis
-        num_nodes = 5 # random.randint(3, 20) # gen some nodes
+        num_nodes = 3 # random.randint(3, 20) # gen some nodes
         num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
 
         # creates a diagonal matrix of delays (in Neptune this is given)

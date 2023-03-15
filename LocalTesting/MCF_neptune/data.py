@@ -40,7 +40,7 @@ def data_to_solver_input(schedule_input):
     # Cluster runtime data
     node_delay_matrix = [[1 if s != d else 0 for s in nodes] for d in nodes]
     gpu_node_delay_matrix = [[1 if s != d else 0 for s in nodes] for d in gpu_nodes]
-    workload_on_source_matrix = np.array([[1 for _ in nodes] for _ in functions])
+    workload_on_source_matrix = np.array([[0 for _ in nodes] for _ in functions])
     gpu_workload_on_destination_matrix = np.array([[0 for _ in gpu_nodes] for _ in gpu_functions])
     workload_on_destination_matrix = np.array([[0 for _ in nodes] for _ in functions])
     cores_matrix = np.array([[0 for _ in nodes] for _ in functions])

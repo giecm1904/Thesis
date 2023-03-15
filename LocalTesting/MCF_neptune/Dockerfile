@@ -5,13 +5,13 @@ RUN apt install nano -y
 RUN apt install vim -y
 RUN apt install screen -y
 RUN apt install curl -y
+RUN apt install python3-pyproj -y
 COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
 COPY *.py ./
 COPY *.sh ./
-COPY *.csv ./
 RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["/bin/bash", "./entrypoint.sh"]
