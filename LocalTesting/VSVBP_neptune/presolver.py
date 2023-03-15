@@ -311,15 +311,10 @@ class Solver:
         req_node_coverage = []  
         
         # Identifies which user sent the request [users_location x requests_received]
-        req_by_user=[
-                    [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
-                    [0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0],
-                    [0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0],
-                    [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-                    [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0]]
+        matrix_size = (num_users, self.requests_received)
+        req_by_user = np.zeros(matrix_size)
+        row_indices = np.random.randint(0, matrix_size[0], matrix_size[1])
+        req_by_user[row_indices, np.arange(matrix_size[1])] = 1
         
         # 1 if request r arrives to node i [N x R]
         loc_arrival_r=np.zeros([int(data.sources),int(self.requests_received)])

@@ -311,16 +311,11 @@ class Solver:
         self.requests_received = int(np.sum(data.workload_matrix)) 
         
         # Identifies which user sent the request [users_location x requests_received]
-        req_by_user=[
-                    [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
-                    [0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0],
-                    [0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0],
-                    [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-                    [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0]]
-        
+        matrix_size = (num_users, self.requests_received)
+        req_by_user = np.zeros(matrix_size)
+        row_indices = np.random.randint(0, matrix_size[0], matrix_size[1])
+        req_by_user[row_indices, np.arange(matrix_size[1])] = 1
+
         # 1 if request r arrives to node i [N x R]
         self.loc_arrival_r=np.zeros([int(data.sources),int(self.requests_received)])
 
@@ -380,14 +375,7 @@ class Solver:
                             temp.append(0)
             
             self.req_node_coverage.append(temp)
-
-        self.req_node_coverage=[[1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1], 
-         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], 
-         [1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0], 
-         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0]]
-        print("Request dist: ", self.req_distribution)
-        print("Coverage:  ", self.req_node_coverage)
+        
         # Initialize variable
         self.x_jr = np.zeros(shape=(data.nodes,int(self.requests_received)))
         self.c_fj = np.zeros(shape=(len(data.functions),data.nodes))
@@ -579,8 +567,6 @@ class Solver:
             for f in range(len(self.data.functions)):
                 c_matrix[f][j] = self.c_fj[f][j]
         
-        print("---------------x_rj [R,N]----------------")
-        print(self.x_jr)
         print("---------------C_MATRIX [F,N]----------------")
         print(c_matrix)
         
