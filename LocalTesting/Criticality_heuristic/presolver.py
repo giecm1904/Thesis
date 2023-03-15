@@ -460,7 +460,7 @@ class Solver:
                 if self.req_by_user[u][r]==1:
                     CR_requests[r]=CR[u]
         
-        index_CR=np.argsort(CR_requests, kind='stable')
+        index_CR=np.argsort(-CR_requests, kind='stable')
 
         return index_CR,CR_requests
 
@@ -638,10 +638,6 @@ class Solver:
                                         print("✓ core constraint ")
                                         print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])
                                         for i in range(self.data.sources):
-                                            print( "NODE DELAY", np.shape(self.data.node_delay_matrix) )
-                                            print( "MAX DELAY", np.shape(self.data.max_delay_matrix) )
-                                            print( "LOC ARRIVAL", self.loc_arrival_r )
-                                            print("REQ DISTR", np.shape(self.req_distribution) )
                                             if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
