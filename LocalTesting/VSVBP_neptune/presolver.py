@@ -487,7 +487,7 @@ class Solver:
                         print(f'c[{f},{j}]: Function {f} has been deployed on node {j}')
 
             print('----------------------------------------------------------------------')
-            for j in range(len(self.data.functions)):
+            for j in range(self.data.nodes):
                 if int(self.solver.Value(self.y[j])) == 1:
                         print(f'y[{j}]: Node {j} is used') 
 
