@@ -484,7 +484,7 @@ class Solver:
         # EXAMPLE USAGE
 
         max_delay = 2000 # millis
-        num_nodes = 5 # random.randint(3, 20) # gen some nodes
+        num_nodes = 3 # random.randint(3, 20) # gen some nodes
         self.num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
 
         # creates a diagonal matrix of delays (in Neptune this is given)
@@ -602,128 +602,128 @@ class Solver:
             for j in index_j:
                 for f in range(len(self.data.functions)):
                     if all(self.S_active[f,:]==0) and loc==0 and self.req_distribution[f][r]:
-                        print(f" **** NO CONTAINERS FOR FUNCTION {f} **** ") 
+                        #print(f" **** NO CONTAINERS FOR FUNCTION {f} **** ") 
                         #Option 1 there is no container for function f and there are active nodes we can check
                         active_j=np.where(self.y_j==1)[0][:]  
                         ordered_active_j = [x for x in index_j if x  in active_j]
                         #ordered_active_j= np.where(self.y_j==1)[0][:]  
-                        print("Active nodes:  ", ordered_active_j)
+                        #print("Active nodes:  ", ordered_active_j)
                         for j_temp in ordered_active_j:
                             if self.req_node_coverage[j_temp][r]==1 and loc==0:
-                                print("Active nodes:  ", ordered_active_j)
-                                print("NODE:  ",j_temp," FUNCTION: ", f)
-                                print("✓ proximity constraint ")
+                                #print("Active nodes:  ", ordered_active_j)
+                                #print("NODE:  ",j_temp," FUNCTION: ", f)
+                                #print("✓ proximity constraint ")
                                 if sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f]<=self.data.node_memory_matrix[j_temp]: #memory constraint
-                                    print("✓ memory constraint ")
-                                    print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
+                                    #print("✓ memory constraint ")
+                                    #print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
                                     if sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp]: #core constraint
-                                        print("✓ core constraint ")
-                                        print("CORE REQ: ",sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r] )
+                                        #print("✓ core constraint ")
+                                        #print("CORE REQ: ",sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r] )
                                         for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j_temp]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
-                                                print("✓ delay constraint, arrived to node: ", i)
+                                                #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
                                                 self.x_jr[j_temp][r]=1
                                                 self.S_active[f][j_temp]=1
                                                 self.y_j[j_temp]=1
                                                 self.c_fj[f][j_temp]=1
                                                 index_distribution[j_temp]=index_distribution[j_temp]-self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f,r]
-                                                print("DEPLOY CONTAINER IN NODE: ",j_temp," function: ", f)
-                                                print("||||||||||||||||||||| OPTION 1 |||||||||||||||||||||")
+                                                #print("DEPLOY CONTAINER IN NODE: ",j_temp," function: ", f)
+                                                #print("||||||||||||||||||||| OPTION 1 |||||||||||||||||||||")
                                                 break
                         #Option 2: there is no container for function f and no active nodes (all y_j==0)
                         if j not in ordered_active_j and loc==0:
-                            print("NODE:  ",j," FUNCTION: ", f)
+                            #print("NODE:  ",j," FUNCTION: ", f)
                             if self.req_node_coverage[j][r]==1:
-                                print("✓ proximity constraint ")
+                                #print("✓ proximity constraint ")
                                 if (sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])<=(self.data.node_memory_matrix[j]): #memory constraint
-                                    print("✓ memory constraint ")
-                                    print("SUM MEMORY: ", (sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions))))+self.data.function_memory_matrix[f])
+                                    #print("✓ memory constraint ")
+                                    #print("SUM MEMORY: ", (sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions))))+self.data.function_memory_matrix[f])
                                     if (sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])<=(self.data.node_cores_matrix[j]) : #core constraint
-                                        print("✓ core constraint ")
-                                        print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])
+                                        #print("✓ core constraint ")
+                                        #print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])
                                         for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
-                                                print("✓ delay constraint, arrived to node: ", i)
+                                                #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
                                                 self.x_jr[j][r]=1
                                                 self.S_active[f][j]=1
                                                 self.y_j[j]=1
                                                 index_distribution[j]=index_distribution[j]-self.data.core_per_req_matrix[f,j]*self.req_distribution[f,r]
                                                 self.c_fj[f][j]=1
-                                                print("ACTIVATE NODE: ",j," for function: ", f)
-                                                print("||||||||||||||||||||| OPTION 2 |||||||||||||||||||||")
+                                                #print("ACTIVATE NODE: ",j," for function: ", f)
+                                                #print("||||||||||||||||||||| OPTION 2 |||||||||||||||||||||")
                                                 break
                     if any(self.S_active[f,:]==1) and loc==0 and self.req_distribution[f][r]==1: 
                         #Option 3: there is already a container for function f in a node, so it checks if request can be allocated to this node
                         active_loc_f=np.where(self.S_active[f,:]==1)[0][:]
                         ordered_active_loc_f = [x for x in index_j if x  in active_loc_f]
                         #ordered_active_loc_f=np.where(self.S_active[f,:]==1)[0][:]
-                        print(f"Active nodes with container {f}:  ", ordered_active_loc_f)
+                        #print(f"Active nodes with container {f}:  ", ordered_active_loc_f)
                         for j_temp_active in ordered_active_loc_f:
                             if self.req_node_coverage[j_temp_active][r]==1 and loc==0: #Proximity constraint:
-                                print(f"THERE IS AN ACTIVE CONTAINER OF TYPE {f} IN NODE {j_temp_active} THAT CAN BE USED")
-                                print("NODE:  ",j_temp_active," FUNCTION: ", f)
-                                print("✓ proximity constraint ")
+                                #print(f"THERE IS AN ACTIVE CONTAINER OF TYPE {f} IN NODE {j_temp_active} THAT CAN BE USED")
+                                #print("NODE:  ",j_temp_active," FUNCTION: ", f)
+                                #print("✓ proximity constraint ")
                                 if sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_active] for f_temp in range(len(self.data.functions)))<=self.data.node_memory_matrix[j_temp_active]: #memory constraint
-                                    print("✓ memory constraint ")
-                                    print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_active] for f_temp in range(len(self.data.functions))))
+                                    #print("✓ memory constraint ")
+                                    #print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_active] for f_temp in range(len(self.data.functions))))
                                     if sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_active]: #core constraint
-                                        print("✓ core constraint ")
-                                        print("CORE REQ: ",sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r])
+                                        #print("✓ core constraint ")
+                                        #print("CORE REQ: ",sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r])
                                         for i in range(self.data.sources):
                                             if self.data.node_delay_matrix[i,j_temp_active]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
-                                                print("✓ delay constraint, arrived to node: ", i)
+                                                #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
                                                 self.x_jr[j_temp_active][r]=1
                                                 index_distribution[j_temp_active]=index_distribution[j_temp_active]-self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f,r]
-                                                print("USES NODE: ",j_temp_active," function: ", f)
-                                                print("||||||||||||||||||||| OPTION 3 |||||||||||||||||||||")
+                                                #print("USES NODE: ",j_temp_active," function: ", f)
+                                                #print("||||||||||||||||||||| OPTION 3 |||||||||||||||||||||")
                                                 break
                         #Option 4: Needs to deploy a container for function f in one of the active nodes
                         if self.req_node_coverage[j][r]==1 and (j not in ordered_active_loc_f) and loc==0 and any(self.y_j==1): #Proximity constraint:
                             active_j_f=np.where(self.y_j==1)[0][:]  
                             ordered_active_j_f = [x for x in index_j if x  in active_j_f]
                             #ordered_active_j_f= np.where(self.y_j==1)[0][:]  
-                            print("Active nodes:  ", ordered_active_j_f)
+                            #print("Active nodes:  ", ordered_active_j_f)
                             for j_temp_f in ordered_active_j_f:
                                 if self.req_node_coverage[j_temp_f][r]==1 and loc==0:
-                                    print("Node ",j_temp_f, "is active and can deploy funcion ", f)
-                                    print("NODE:  ",j_temp_f," FUNCTION: ", f)
-                                    print("✓ proximity constraint ")
+                                    #print("Node ",j_temp_f, "is active and can deploy funcion ", f)
+                                    #print("NODE:  ",j_temp_f," FUNCTION: ", f)
+                                    #print("✓ proximity constraint ")
                                     if sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_f] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f]<=self.data.node_memory_matrix[j_temp_f]: #memory constraint
-                                        print("✓ memory constraint ")
-                                        print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_f] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
+                                        #print("✓ memory constraint ")
+                                        #print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j_temp_f] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
                                         if sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_f]: #core constraint
-                                            print("✓ core constraint ")
-                                            print("CORE REQ: ",sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r] )
+                                            #print("✓ core constraint ")
+                                            #print("CORE REQ: ",sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r] )
                                             for i in range(self.data.sources):
                                                 if self.data.node_delay_matrix[i,j_temp_f]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
-                                                    print("✓ delay constraint, arrived to node: ", i)
+                                                    #print("✓ delay constraint, arrived to node: ", i)
                                                     loc=1
                                                     self.x_jr[j_temp_f][r]=1
                                                     self.S_active[f][j_temp_f]=1
                                                     self.y_j[j_temp_f]=1
                                                     self.c_fj[f][j_temp_f]=1
                                                     index_distribution[j_temp_f]=index_distribution[j_temp_f]-self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f,r]
-                                                    print("DEPLOY CONTAINER IN NODE: ",j_temp_f," function: ", f)
-                                                    print("||||||||||||||||||||| OPTION 4 |||||||||||||||||||||")
+                                                    #print("DEPLOY CONTAINER IN NODE: ",j_temp_f," function: ", f)
+                                                    #print("||||||||||||||||||||| OPTION 4 |||||||||||||||||||||")
                                                     break
                             #Option 5: when need to turn on a new node for a given function f
                             if j not in ordered_active_j_f and loc==0:
                                 if self.req_node_coverage[j][r]==1:
-                                    print("No active nodes that can serve function ", f)
-                                    print("NODE:  ",j," FUNCTION: ", f)
-                                    print("✓ proximity constraint ")
+                                    #print("No active nodes that can serve function ", f)
+                                    #print("NODE:  ",j," FUNCTION: ", f)
+                                    #print("✓ proximity constraint ")
                                     if sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f]<=(self.data.node_memory_matrix[j]): #memory constraint
-                                        print("✓ memory constraint ")
-                                        print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
+                                        #print("✓ memory constraint ")
+                                        #print("SUM MEMORY: ", sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,j] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f])
                                         if sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r]<= (self.data.node_cores_matrix[j]): #core constraint
-                                            print("✓ core constraint ")
-                                            print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r] )
+                                            #print("✓ core constraint ")
+                                            #print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r] )
                                             for i in range(self.data.sources):
                                                 if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
-                                                    print("✓ delay constraint, arrived to node: ", i)
+                                                    #print("✓ delay constraint, arrived to node: ", i)
                                                     loc=1
                                                     self.x_jr[j][r]=1
                                                     self.S_active[f][j]=1
@@ -731,19 +731,19 @@ class Solver:
                                                     index_distribution[j]=index_distribution[j]-self.data.core_per_req_matrix[f,j]*self.req_distribution[f,r]
                                                     self.c_fj[f][j]=1
                                                     #print("ENTRO EXISTING NODE j:",j," and function: ",f, "for request: ",r)
-                                                    print("ACTIVATE CONTAINER NODE: ",j," function: ", f)
-                                                    print("||||||||||||||||||||| OPTION 5 |||||||||||||||||||||")
+                                                    #print("ACTIVATE CONTAINER NODE: ",j," function: ", f)
+                                                    #print("||||||||||||||||||||| OPTION 5 |||||||||||||||||||||")
                                                     break
 
             print("Core capacity: ", index_distribution)
             print("Active nodes: " ,self.y_j)
-            print("Coontainer allocation: ")
-            print(self.c_fj)
+            #print("Coontainer allocation: ")
+            #print(self.c_fj)
             temp_req_index=temp_req_index+1
         
         for f in range (len(self.data.functions)):
             if all(self.c_fj[f,:]==0) and any(self.y_j==1): #use nodes that are already being used
-                print(" **ENTRO CONDICION VACIO")
+                #print(" **ENTRO CONDICION VACIO")
                 rand_node= np.where(self.y_j==1)[0][:]  
                 for t in rand_node:
                     if sum(self.data.function_memory_matrix[f_temp]*self.c_fj[f_temp,t] for f_temp in range(len(self.data.functions)))+self.data.function_memory_matrix[f]<=(self.data.node_memory_matrix[t]*self.y_j[t]):
@@ -752,7 +752,7 @@ class Solver:
                         self.y_j[rand_node]=1
     
             if all(self.c_fj[f,:]==0): #when there are no requests
-                print(" **ENTRO CONDICION VACIO 2")
+                #print(" **ENTRO CONDICION VACIO 2")
                 rand_node= np.random.choice(range(self.data.sources))
                 self.c_fj[f][rand_node]=1
                 self.S_active[f][rand_node]=1
