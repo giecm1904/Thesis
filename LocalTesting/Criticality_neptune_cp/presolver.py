@@ -488,7 +488,7 @@ class Solver:
         # EXAMPLE USAGE
 
         max_delay = 2000 # millis
-        num_nodes = 3 # random.randint(3, 20) # gen some nodes
+        num_nodes = 5 # random.randint(3, 20) # gen some nodes
         self.num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
 
         # creates a diagonal matrix of delays (in Neptune this is given)
@@ -579,6 +579,7 @@ class Solver:
                             temp.append(0)
             
             req_node_coverage.append(temp)
+        print("-----------position------------------",req_node_coverage)
         # Initialize variable
         self.log("Initializing variables...")
         for j in range(data.nodes):
@@ -661,7 +662,7 @@ class Solver:
         # Objective function
         for j in range(self.data.nodes):
             for r in range(self.requests_received):
-                objective_max.append(self.x[j,r])
+                objective_max.append(self.x[j,r]*self.CR_matrix[r])
         self.model.Maximize(sum(objective_max))
 
         self.solver.Solve(self.model)
@@ -671,13 +672,9 @@ class Solver:
         for j in range(self.data.nodes):
             for r in range(self.requests_received):
                 self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
-            
-        # Constraint previous objective
-        self.model.Add(
-            sum([
-                self.x[j, r] for j in range(self.data.nodes) for r in range(self.requests_received)
-            ]) == round(self.solver.ObjectiveValue())
-        ) 
+        
+        for r in range(self.requests_received):
+            self.model.Add(sum([self.x[j, r] for j in range(self.data.nodes)]) == sum([self.solver.Value(self.x[j,r]) for j in range(self.data.nodes)]))
 
         # Minimize the number of nodes used
         objective_min = []
