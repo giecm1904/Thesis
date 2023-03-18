@@ -9,3 +9,4 @@ pyproj==3.4.1
 geopy==2.3.0
 hurry.filesize==0.9
 requests==2.26.0
+psycopg2-binary==2.9.1

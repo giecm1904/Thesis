@@ -1,2 +1,2 @@
-docker build -t systemautoscaler/allocation-algorithm-rest:dev .
-docker push systemautoscaler/allocation-algorithm-rest:dev
+docker build -t adriatico/criticality-allocation-algorithm-rest:dev .
+docker push adriatico/criticality-allocation-algorithm-rest:dev
