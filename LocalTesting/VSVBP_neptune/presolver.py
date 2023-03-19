@@ -26,10 +26,10 @@ class Data():
     node_delay_matrix: np.array = np.array([])
     workload_matrix: np.array = np.array([])
     max_delay_matrix: np.array = np.array([]) 
-    # response_time_matrix: np.array = np.array([])   # We don't need it because is only use for GPU, right? ## DON'T USE IT
+    response_time_matrix: np.array = np.array([])   # We don't need it because is only use for GPU, right? ## DON'T USE IT
     node_cores_matrix: np.array = np.array([])
-    # cores_matrix: np.array = np.array([])           # Where is it used? ## DON'T USE IT
-    # old_allocations_matrix: np.array = np.array([]) # Where is it used? In our case it would be mat_mul? # IGNORE IT
+    cores_matrix: np.array = np.array([])           # Where is it used? ## DON'T USE IT
+    old_allocations_matrix: np.array = np.array([]) # Where is it used? In our case it would be mat_mul? # IGNORE IT
     core_per_req_matrix: np.array = np.array([])
 
     ### gpu_function_memory_matrix: np.array = np.array([])
@@ -301,18 +301,18 @@ class Solver:
 
         # data.sources = num_nodes
         # data.nodes = num_nodes
-        
+
+        # Amount of request received in time-slot
+        for f in range(len(data.functions)):
+            for i in range(len(data.sources)):
+                data.workload_matrix[f][i]=round(data.workload_matrix[f][i])
+        self.requests_received = int(np.sum(data.workload_matrix))
+
         print("--------SOURCES_LEN [N]--------------",data.sources)
         print("--------NODES_LEN [N]--------------",data.nodes)
         print("--------REQUESTS [R]---------------",self.requests_received)
         print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
         print("--------WORKLOAD [R]---------------",data.workload_matrix)
-        # Amount of request received in time-slot
-        
-        for f in range(len(data.functions)):
-            for i in range(len(data.sources)):
-                data.workload_matrix[f][i]=round(data.workload_matrix[f][i])
-        self.requests_received = int(np.sum(data.workload_matrix))
 
         # Set of requests within coverage of node i
         req_node_coverage = []  
@@ -328,7 +328,6 @@ class Solver:
 
         # Show which requests are assigned to each function [F x requests_received]
         self.req_distribution = np.zeros([int(len(data.functions)),int(self.requests_received)])
-
         
 
         r = 0
@@ -391,13 +390,14 @@ class Solver:
                             self.model.Add(
                                 self.x[j, r]==0
                             )         
+        print("size C-----",  self.c)
+        print("size m_f -----",  len(data.function_memory_matrix))
+        print("size M_j -----",  len(data.node_memory_matrix))
 
         # The sum of the memory of functions deployed on a node `n` is less than its capacity
         for j in range(len(data.nodes)):
-            self.model.Add(
-                sum([
-                    self.c[f, j] * data.function_memory_matrix[f] for f in range(len(data.functions))
-                ]) <= data.node_memory_matrix[j]*self.y[j])
+            suma_constraint = sum([self.c[f, j] * data.function_memory_matrix[f] for f in range(len(data.functions))])
+            self.model.Add(suma_constraint <= data.node_memory_matrix[j]*self.y[j])
         
         # Consider the amount of cores available on a node
         # Do not overload a node
