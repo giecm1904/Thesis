@@ -42,8 +42,6 @@ class Data():
         self.sources = sources
         self.nodes = nodes
         self.functions = functions
-        print("--------INIT SOURCES [R]---------------",self.sources)
-        print("--------INIT NODES [R]---------------",self.nodes)
 
 class Input:
     nodes: List[str] = []
@@ -295,7 +293,7 @@ class Solver:
         # print(delay_matrix)
         node_coords = self.delay_to_geo(delay_matrix)
         radius = self.get_radius(node_coords)
-        print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
+        #print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
         user_coords = self.place_users_close_to_nodes(num_users, node_coords)
         self.plot(node_coords, user_coords)
 
@@ -312,7 +310,7 @@ class Solver:
         print("--------NODES_LEN [N]--------------",data.nodes)
         print("--------REQUESTS [R]---------------",self.requests_received)
         print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
-        print("--------WORKLOAD [R]---------------",data.workload_matrix)
+        #print("--------WORKLOAD [R]---------------",data.workload_matrix)
 
         # Set of requests within coverage of node i
         req_node_coverage = []  
@@ -386,26 +384,27 @@ class Solver:
             for r in range(self.requests_received):
                 for f in range(len(data.functions)):
                     for j in range(len(data.nodes)):
-                        if data.node_delay_matrix[i][j]> data.max_delay_matrix[f] and loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1:
+                        if int(data.node_delay_matrix[i][j])> int(data.max_delay_matrix[f]) and loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1:
                             self.model.Add(
                                 self.x[j, r]==0
                             )         
-        print("size C-----",  self.c)
-        print("size m_f -----",  len(data.function_memory_matrix))
-        print("size M_j -----",  len(data.node_memory_matrix))
+
+        # print("m_f -----",  data.function_memory_matrix)
+        # print("M_j -----",  data.node_memory_matrix)
+        # print("U_j -----",  data.node_cores_matrix)
 
         # The sum of the memory of functions deployed on a node `n` is less than its capacity
         for j in range(len(data.nodes)):
-            suma_constraint = sum([self.c[f, j] * data.function_memory_matrix[f] for f in range(len(data.functions))])
-            self.model.Add(suma_constraint <= data.node_memory_matrix[j]*self.y[j])
+            suma_constraint = sum([self.c[f, j] * int(data.function_memory_matrix[f]) for f in range(len(data.functions))])
+            self.model.Add(suma_constraint <= int(data.node_memory_matrix[j])*self.y[j])
         
         # Consider the amount of cores available on a node
         # Do not overload a node
         for j in range(len(data.nodes)):
              self.model.Add(
                  sum([
-                     self.x[j, r] * data.core_per_req_matrix[f,j]*self.req_distribution[f][r] for r in range(self.requests_received) for f in range(len(data.functions))
-                 ]) <= data.node_cores_matrix[j]*self.y[j])
+                     self.x[j, r] * int(data.core_per_req_matrix[f,j])*int(self.req_distribution[f][r]) for r in range(self.requests_received) for f in range(len(data.functions))
+                 ]) <= int(data.node_cores_matrix[j])*self.y[j])
 
         # Contraint family (each request can be allocated just once)
         for r in range(self.requests_received):
@@ -416,7 +415,7 @@ class Solver:
             for j in range(len(data.nodes)):
                 self.model.Add(
                     sum([
-                        self.x[j, r]* self.req_distribution[f][r] for r in range(self.requests_received)
+                        self.x[j, r]* int(self.req_distribution[f][r]) for r in range(self.requests_received)
                     ]) <= self.c[f, j] * 1000)
         
         # If request 'r' is allocated to node j then y[j] is 1

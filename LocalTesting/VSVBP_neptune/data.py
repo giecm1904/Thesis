@@ -77,13 +77,13 @@ def data_to_solver_input(schedule_input):
         con=cnx
     )
 
-    print(f"ARRIVAL RATE SOURCE \n\n {ar_df}")
-    print(f"ARRIVAL RATE DESTINATION \n\n {ard_df}")
-    print(f"RESPONSE TIME \n\n {rt_df}")
-    print(f"DELAYS \n\n {dl_df}")
-    print(f"CPU CONSUMPTION \n\n {cpu_df}")
+    # print(f"ARRIVAL RATE SOURCE \n\n {ar_df}")
+    # print(f"ARRIVAL RATE DESTINATION \n\n {ard_df}")
+    # print(f"RESPONSE TIME \n\n {rt_df}")
+    # print(f"DELAYS \n\n {dl_df}")
+    # print(f"CPU CONSUMPTION \n\n {cpu_df}")
 
-    print(workload_on_destination_matrix)
+    # print(workload_on_destination_matrix)
 
     # Create auxiliary data structures
     node_map = {}
@@ -136,21 +136,22 @@ def data_to_solver_input(schedule_input):
                 func = function_key.split("/")[1]
                 old_cpu_allocations[func_map[func]][node_map[node]] = ok
 
-    core_per_req_matrix = np.nan_to_num(cores_matrix / workload_on_destination_matrix, nan=0)
+    # core_per_req_matrix = np.nan_to_num(cores_matrix / workload_on_destination_matrix, nan=0)
+    core_per_req_matrix = np.nan_to_num(cores_matrix / (workload_on_destination_matrix + 0.01), nan=0)
 
     old_cpu_allocations = np.array(old_cpu_allocations, dtype=bool).astype(int)
     if old_cpu_allocations.sum() == 0:
         old_cpu_allocations = old_cpu_allocations + 1
 
-    print("CPU allocations:")
-    print(old_cpu_allocations)
+    # print("CPU allocations:")
+    # print(old_cpu_allocations)
 
     old_gpu_allocations = np.array(old_gpu_allocations, dtype=bool).astype(int)
     if old_gpu_allocations.sum() == 0:
         old_gpu_allocations = old_gpu_allocations + 1
 
-    print("GPU allocations:")
-    print(old_gpu_allocations)
+    # print("GPU allocations:")
+    # print(old_gpu_allocations)
 
     # Pre solving
     cpu_data = presolver.Data(nodes, nodes, functions)
