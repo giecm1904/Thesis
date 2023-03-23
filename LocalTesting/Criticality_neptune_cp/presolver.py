@@ -488,11 +488,11 @@ class Solver:
         # EXAMPLE USAGE
 
         max_delay = 2000 # millis
-        num_nodes = 3 # random.randint(3, 20) # gen some nodes
+        num_nodes = data.sources # random.randint(3, 20) # gen some nodes
         self.num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
 
         # creates a diagonal matrix of delays (in Neptune this is given)
-        b = np.random.randint(0, max_delay, size=(num_nodes,num_nodes))
+        b = np.random.randint(0, max_delay, size=(len(num_nodes),len(num_nodes)))
         delay_matrix = (b + b.T)/2
         np.fill_diagonal(delay_matrix, 0)
 
@@ -500,19 +500,25 @@ class Solver:
         # print(delay_matrix)
         node_coords = self.delay_to_geo(delay_matrix)
         radius = self.get_radius(node_coords)
-        print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
+        #print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
         user_coords = self.place_users_close_to_nodes(self.num_users, node_coords)
         self.plot(node_coords, user_coords)
 
-        data.sources = num_nodes
-        data.nodes = num_nodes
+        # data.sources = num_nodes
+        # data.nodes = num_nodes
         
         # Amount of request received in time-slot
         for f in range(len(data.functions)):
-            for i in range(data.sources):
+            for i in range(len(data.sources)):
                 data.workload_matrix[f][i]=round(data.workload_matrix[f][i])
         self.requests_received = int(np.sum(data.workload_matrix))
 
+        print("--------SOURCES_LEN [N]--------------",data.sources)
+        print("--------NODES_LEN [N]--------------",data.nodes)
+        print("--------REQUESTS [R]---------------",self.requests_received)
+        print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
+        #print("--------WORKLOAD [R]---------------",data.workload_matrix)
+        
         # Set of requests within coverage of node i
         req_node_coverage = []  
         
@@ -523,18 +529,15 @@ class Solver:
         self.req_by_user[row_indices, np.arange(matrix_size[1])] = 1
         
         # 1 if request r arrives to node i [N x R]
-        loc_arrival_r=np.zeros([int(data.sources),int(self.requests_received)])
+        loc_arrival_r=np.zeros([int(len(data.sources)),int(self.requests_received)])
 
         # Show which requests are assigned to each function [F x requests_received]
         self.req_distribution = np.zeros([int(len(data.functions)),int(self.requests_received)])
 
-        print("--------NODES_LEN [N]--------------",data.sources)
-        print("--------REQUESTS [R]---------------",self.requests_received)
-        print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
 
         r = 0
         while r<self.requests_received:
-            for i in range(data.sources):
+            for i in range(len(data.sources)):
                 for f in range(len(data.functions)):
                     dif = data.workload_matrix[f][i]
                     while dif >0:
@@ -563,7 +566,7 @@ class Solver:
         #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
         # radius = np.full(data.sources, 0.03)
 
-        for i in range(data.sources):
+        for i in range(len(data.sources)):
             node_latitude = node_coords[i,0]
             node_longitude = node_coords[i,1]
             temp = []
@@ -582,62 +585,60 @@ class Solver:
         print("-----------position------------------",req_node_coverage)
         # Initialize variable
         self.log("Initializing variables...")
-        for j in range(data.nodes):
+        for j in range(len(data.nodes)):
             for r in range(self.requests_received):
                     self.x[j, r] = self.model.NewBoolVar(f'c[{j}][{r}]')
         for f in range(len(data.functions)):
-            for j in range(data.nodes):
+            for j in range(len(data.nodes)):
                 self.c[f, j] = self.model.NewBoolVar(f'c[{f}][{j}]')
-        for j in range(data.nodes): 
+        for j in range(len(data.nodes)): 
             self.y[j] = self.model.NewBoolVar(f'c[{j}]')
 
         # Initialize constraints
         self.log("Initializing constraints...")
         #Controls if request r can be managed by node j
         for r in range(self.requests_received):
-            for j in range(data.nodes):
+            for j in range(len(data.nodes)):
                 if req_node_coverage[j][r]==0:
                     self.model.Add(self.x[j, r]==0) 
 
         #Proximity constraint (node i-node j) 
-        for i in range(data.sources):
+        for i in range(len(data.sources)):
             for r in range(self.requests_received):
                 for f in range(len(data.functions)):
-                    for j in range(data.nodes):
-                        if data.node_delay_matrix[i][j]> data.max_delay_matrix[f] and loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1:
+                    for j in range(len(data.nodes)):
+                        if int(data.node_delay_matrix[i][j])> int(data.max_delay_matrix[f]) and loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1:
                             self.model.Add(
                                 self.x[j, r]==0
                             )         
 
         # The sum of the memory of functions deployed on a node `n` is less than its capacity
-        for j in range(data.nodes):
-            self.model.Add(
-                sum([
-                    self.c[f, j] * data.function_memory_matrix[f] for f in range(len(data.functions))
-                ]) <= data.node_memory_matrix[j]*self.y[j])
-        
+        for j in range(len(data.nodes)):
+            suma_constraint = sum([self.c[f, j] * int(data.function_memory_matrix[f]) for f in range(len(data.functions))])
+            self.model.Add(suma_constraint <= int(data.node_memory_matrix[j])*self.y[j])
+
         # Consider the amount of cores available on a node
         # Do not overload a node
-        for j in range(data.nodes):
+        for j in range(len(data.nodes)):
              self.model.Add(
                  sum([
-                     self.x[j, r] * data.core_per_req_matrix[f,j]*self.req_distribution[f][r] for r in range(self.requests_received) for f in range(len(data.functions))
-                 ]) <= data.node_cores_matrix[j]*self.y[j])
+                     self.x[j, r] * int(data.core_per_req_matrix[f,j])*int(self.req_distribution[f][r]) for r in range(self.requests_received) for f in range(len(data.functions))
+                 ]) <= int(data.node_cores_matrix[j])*self.y[j])
 
         # Contraint family (each request can be allocated just once)
         for r in range(self.requests_received):
-            self.model.Add(sum([self.x[j, r] for j in range(data.nodes)]) <= 1)
+            self.model.Add(sum([self.x[j, r] for j in range(len(data.nodes))]) <= 1)
 
         # If a function `f` is deployed on node `n` then c[f,n] is True
         for f in range(len(data.functions)):
-            for j in range(data.nodes):
+            for j in range(len(data.nodes)):
                 self.model.Add(
                     sum([
-                        self.x[j, r]* self.req_distribution[f][r] for r in range(self.requests_received)
+                        self.x[j, r]* int(self.req_distribution[f][r]) for r in range(self.requests_received)
                     ]) <= self.c[f, j] * 1000)
         
         # If request 'r' is allocated to node j then y[j] is 1
-        for j in range(data.nodes):
+        for j in range(len(data.nodes)):
             self.model.Add(
                 sum([
                     self.x[j, r] for r in range(self.requests_received)
@@ -646,7 +647,7 @@ class Solver:
         # Allocates at least one instance for each function (even with no incoming requests)
         for f in range(len(self.data.functions)):
             self.model.Add(
-                sum([self.c[f,j] for j in range(self.data.nodes)])>= 1
+                sum([self.c[f,j] for j in range(len(self.data.nodes))])>= 1
             )
 
     def log(self, msg: str):
@@ -660,7 +661,7 @@ class Solver:
         objective_max = []
 
         # Objective function
-        for j in range(self.data.nodes):
+        for j in range(len(self.data.nodes)):
             for r in range(self.requests_received):
                 objective_max.append(self.x[j,r]*self.CR_matrix[r])
         self.model.Maximize(sum(objective_max))
@@ -669,23 +670,23 @@ class Solver:
         max_requests = self.solver.ObjectiveValue()
 
         # Hint (speed up solving)
-        for j in range(self.data.nodes):
+        for j in range(len(self.data.nodes)):
             for r in range(self.requests_received):
                 self.model.AddHint(self.x[j,r], self.solver.Value(self.x[j,r]))
         
         for r in range(self.requests_received):
-            self.model.Add(sum([self.x[j, r] for j in range(self.data.nodes)]) == sum([self.solver.Value(self.x[j,r]) for j in range(self.data.nodes)]))
+            self.model.Add(sum([self.x[j, r] for j in range(len(self.data.nodes))]) == sum([self.solver.Value(self.x[j,r]) for j in range(len(self.data.nodes))]))
 
         # Minimize the number of nodes used
         objective_min = []
 
-        for j in range(self.data.nodes):
+        for j in range(len(self.data.nodes)):
             objective_min.append(self.y[j])
         self.model.Minimize(sum(objective_min))
 
         # Solve problem
 
-        self.x_jr = np.zeros([int(self.data.nodes),int(self.requests_received)])
+        self.x_jr = np.zeros([int(len(self.data.nodes)),int(self.requests_received)])
         status = self.solver.Solve(self.model)
         self.log(f"Problem solved with status {status}")
         # DISPLAY THE SOLUTION-----------------------------------
@@ -693,26 +694,26 @@ class Solver:
             print('SOLUTION:')
             print(f'Objective value: {max_requests} requests have been allocated to {self.solver.ObjectiveValue()} nodes\n')
             for r in range(self.requests_received):
-                for j in range(self.data.nodes):
+                for j in range(len(self.data.nodes)):
                     if int(self.solver.Value(self.x[j,r])) == 1:
                         print(f'x[{j},{r}]: Request {r} has been allocated to node {j}')
                         self.x_jr[j][r]=1
           
             print('----------------------------------------------------------------------')
             for f in range(len(self.data.functions)):
-                for j in range(self.data.nodes):
+                for j in range(len(self.data.nodes)):
                     if int(self.solver.Value(self.c[f,j])) == 1:
                         print(f'c[{f},{j}]: Function {f} has been deployed on node {j}')
 
             print('----------------------------------------------------------------------')
-            for j in range(self.data.nodes):
+            for j in range(len(self.data.nodes)):
                 if int(self.solver.Value(self.y[j])) == 1:
                         print(f'y[{j}]: Node {j} is used') 
 
     def results(self) -> Tuple[np.array, np.array]:
         # Fill c matrix
-        c_matrix = np.empty(shape=(len(self.data.functions), self.data.nodes))
-        for j in range(self.data.nodes):
+        c_matrix = np.empty(shape=(len(self.data.functions), len(self.data.nodes)))
+        for j in range(len(self.data.nodes)):
             for f in range(len(self.data.functions)):
                 c_matrix[f][j] = self.solver.Value(self.c[f, j])
         
@@ -721,9 +722,9 @@ class Solver:
         
         # Fill x matrix
         mat_mul = np.dot(self.req_distribution,np.transpose(self.x_jr))
-        x_matrix = np.empty(shape=(self.data.sources,len(self.data.functions),self.data.nodes))
-        for i in range(self.data.sources):
-            for j in range(self.data.nodes):
+        x_matrix = np.empty(shape=(len(self.data.sources),len(self.data.functions),len(self.data.nodes)))
+        for i in range(len(self.data.sources)):
+            for j in range(len(self.data.nodes)):
                 for f in range(len(self.data.functions)):
                     if sum(mat_mul[f])==0:
                         x_matrix[i][f][j] = 0

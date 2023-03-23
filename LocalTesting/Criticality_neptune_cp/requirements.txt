@@ -11,4 +11,5 @@ scikit-learn==1.2.2
 matplotlib==3.7.1
 pyproj==3.4.1
 geopy==2.3.0
-cython==0.29.33
+Cython==0.29.33
+setuptools==44.0.0
