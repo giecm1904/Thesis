@@ -5,9 +5,18 @@ RUN apt install nano -y
 RUN apt install vim -y
 RUN apt install screen -y
 RUN apt install curl -y
+RUN apt install python3-pyproj -y
+RUN apt install git -y
+RUN apt install build-essential -y
 COPY requirements.txt .
 
 RUN pip install -r requirements.txt
+
+RUN git clone https://github.com/sybrenstuvel/Python-RVO2.git
+WORKDIR /Python-RVO2
+RUN python setup.py build
+RUN python setup.py install
+WORKDIR /
 
 COPY *.py ./
 COPY *.sh ./

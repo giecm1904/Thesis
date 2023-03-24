@@ -16,6 +16,7 @@ RUN git clone https://github.com/sybrenstuvel/Python-RVO2.git
 WORKDIR /Python-RVO2
 RUN python setup.py build
 RUN python setup.py install
+WORKDIR /
 
 COPY *.py ./
 COPY *.sh ./

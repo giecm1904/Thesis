@@ -51,7 +51,7 @@ def data_to_solver_input(schedule_input):
     old_gpu_allocations = np.array([[0 for _ in gpu_nodes] for _ in gpu_functions])
     core_per_req_matrix = np.array([[1 for _ in nodes] for _ in functions])
 
-    # # Retrieve data from the database
+    # Retrieve data from the database
     username = "user"
     password = "password"
     database_host = "metrics-database.kube-system.svc.cluster.local"
@@ -136,7 +136,8 @@ def data_to_solver_input(schedule_input):
                 func = function_key.split("/")[1]
                 old_cpu_allocations[func_map[func]][node_map[node]] = ok
 
-    core_per_req_matrix = np.nan_to_num(cores_matrix / workload_on_destination_matrix, nan=0)
+    # core_per_req_matrix = np.nan_to_num(cores_matrix / workload_on_destination_matrix, nan=0)
+    core_per_req_matrix = np.nan_to_num(cores_matrix / (workload_on_destination_matrix + 0.01), nan=0)
 
     old_cpu_allocations = np.array(old_cpu_allocations, dtype=bool).astype(int)
     if old_cpu_allocations.sum() == 0:

@@ -1,2 +1,2 @@
-docker build -t adriatico/cr-allocation-algorithm-rest:dev .
-docker push adriatico/cr-allocation-algorithm-rest:dev
+docker build -t adriatico/cr-o-allocation-algorithm-rest:dev .
+docker push adriatico/cr-o-allocation-algorithm-rest:dev

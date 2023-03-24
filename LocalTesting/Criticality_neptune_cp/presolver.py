@@ -192,10 +192,10 @@ class Solver:
     transformer = Transformer.from_crs('epsg:3857', 'epsg:4326')
 
     #Criticality inputs
-    CR_amtrix = []
+    CR_matrix = []
     #D =(-37.81952,144.95714099999998)  # Danger source position
-    D=(0,0)
-    D_rad = (0.45) # Influence range of danger source D (radius) in km
+    D = (round(random.uniform(-0.010, 0.010),3),round(random.uniform(-0.010, 0.010),3)) 
+    D_rad = (0.5) # Influence range of danger source D (radius) in km
     U_per = 0  # Perception range of individual uj in km
     T_1 =0 # Starting point of period
     T_2 = 1 # Ending point of period
@@ -496,11 +496,9 @@ class Solver:
         delay_matrix = (b + b.T)/2
         np.fill_diagonal(delay_matrix, 0)
 
-        # print("####### DELAY_MATRIX ######")
-        # print(delay_matrix)
         node_coords = self.delay_to_geo(delay_matrix)
         radius = self.get_radius(node_coords)
-        #print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
+        # print("Radius used in KM: ", radius[0])
         user_coords = self.place_users_close_to_nodes(self.num_users, node_coords)
         self.plot(node_coords, user_coords)
 
