@@ -618,7 +618,7 @@ class Solver:
                                     if sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp]: #core constraint
                                         #print("✓ core constraint ")
                                         #print("CORE REQ: ",sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r] )
-                                        for i in range(self.data.sources):
+                                        for i in range(len(self.data.sources)):
                                             if self.data.node_delay_matrix[i,j_temp]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -696,7 +696,7 @@ class Solver:
                                         if sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_f]: #core constraint
                                             #print("✓ core constraint ")
                                             #print("CORE REQ: ",sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r] )
-                                            for i in range(self.data.sources):
+                                            for i in range(len(self.data.sources)):
                                                 if self.data.node_delay_matrix[i,j_temp_f]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                     #print("✓ delay constraint, arrived to node: ", i)
                                                     loc=1
