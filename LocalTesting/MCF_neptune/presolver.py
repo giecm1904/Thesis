@@ -284,11 +284,11 @@ class Solver:
         ################## MISSING INPUTS ##################
         # EXAMPLE USAGE
         max_delay = 2000 # millis
-        num_nodes = 3 # random.randint(3, 20) # gen some nodes
+        num_nodes = data.sources # random.randint(3, 20) # gen some nodes
         num_users = 8 # random.randint(num_nodes*2, num_nodes*50) # gen some users
 
         # creates a diagonal matrix of delays (in Neptune this is given)
-        b = np.random.randint(0, max_delay, size=(num_nodes,num_nodes))
+        b = np.random.randint(0, max_delay, size=(len(num_nodes),len(num_nodes)))
         delay_matrix = (b + b.T)/2
         np.fill_diagonal(delay_matrix, 0)
 
@@ -296,19 +296,24 @@ class Solver:
         # print(delay_matrix)
         node_coords = self.delay_to_geo(delay_matrix)
         radius = self.get_radius(node_coords)
-        print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
+        #print("Radius used in KM: ", radius[0], "equivalent to degrees:",  radius[1])
         user_coords = self.place_users_close_to_nodes(num_users, node_coords)
         self.plot(node_coords, user_coords)
 
-        data.sources = num_nodes
-        data.nodes = num_nodes
+        #data.sources = num_nodes
+        #data.nodes = num_nodes
 
         # Amount of request received in time-slot
         for f in range(len(data.functions)):
-            for i in range(data.sources):
+            for i in range(len(data.sources)):
                 data.workload_matrix[f][i]=round(data.workload_matrix[f][i])
         self.requests_received = int(np.sum(data.workload_matrix)) 
         
+        print("--------SOURCES_LEN [N]--------------",len(data.sources))
+        print("--------NODES_LEN [N]--------------",len(data.nodes))
+        print("--------REQUESTS [R]---------------",self.requests_received)
+        print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
+        #print("--------U_rj---------------------", data.function_memory_matrix)
         # Identifies which user sent the request [users_location x requests_received]
         matrix_size = (num_users, self.requests_received)
         req_by_user = np.zeros(matrix_size)
@@ -316,18 +321,14 @@ class Solver:
         req_by_user[row_indices, np.arange(matrix_size[1])] = 1
 
         # 1 if request r arrives to node i [N x R]
-        self.loc_arrival_r=np.zeros([int(data.sources),int(self.requests_received)])
+        self.loc_arrival_r=np.zeros([int(len(data.sources)),int(self.requests_received)])
 
         # Show which requests are assigned to each function [F x requests_received]
         self.req_distribution = np.zeros([int(len(data.functions)),int(self.requests_received)])
 
-        print("--------NODES_LEN [N]--------------",data.sources)
-        print("--------REQUESTS [R]---------------",self.requests_received)
-        print("--------M_F_LEN [F]---------------",len(data.function_memory_matrix))
-
         r = 0
         while r<self.requests_received:
-            for i in range(data.sources):
+            for i in range(len(data.sources)):
                 for f in range(len(data.functions)):
                     dif = data.workload_matrix[f][i]
                     while dif >0:
@@ -355,10 +356,11 @@ class Solver:
         #else:
         self.requests_index=np.argsort(m_index,kind='stable')
 
+        #print("------------INDEX---------------",self.requests_index)
         # COVERAGE REQUEST-NODE
         #radius = np.round(np.random.uniform(0.1,0.15,len(S)),3) # in km
         #radius = np.full(len(data.sources), 0.03)
-        for i in range(data.sources):
+        for i in range(len(data.sources)):
             node_latitude = node_coords[i,0]
             node_longitude = node_coords[i,1]
             temp = []
@@ -376,10 +378,10 @@ class Solver:
             self.req_node_coverage.append(temp)
         
         # Initialize variable
-        self.x_jr = np.zeros(shape=(data.nodes,int(self.requests_received)))
-        self.c_fj = np.zeros(shape=(len(data.functions),data.nodes))
-        self.y_j = np.zeros(data.nodes)
-        self.S_active = np.zeros(shape=(len(data.functions),data.nodes))
+        self.x_jr = np.zeros(shape=(int(len(data.nodes)),int(self.requests_received)))
+        self.c_fj = np.zeros(shape=(len(data.functions),int(len(data.nodes))))
+        self.y_j = np.zeros(int(len(data.nodes)))
+        self.S_active = np.zeros(shape=(len(data.functions),int(len(data.nodes))))
         
 
     def log(self, msg: str):
@@ -390,7 +392,7 @@ class Solver:
         # Starting to solve
         self.log("Starting solving problem...")
         temp_req_index=0
-        index_distribution = np.zeros(self.data.nodes)
+        index_distribution = np.zeros(len(self.data.nodes))
         for j in range(len(self.data.node_cores_matrix)):
             index_distribution[j] = self.data.node_cores_matrix[j]
         
@@ -421,7 +423,7 @@ class Solver:
                                     if sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp]: #core constraint
                                         #print("✓ core constraint ")
                                         #print("CORE REQ: ",sum(self.x_jr[j_temp,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp]*self.req_distribution[f][r] )
-                                        for i in range(self.data.sources):
+                                        for i in range(len(self.data.sources)):
                                             if self.data.node_delay_matrix[i,j_temp]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -444,7 +446,7 @@ class Solver:
                                     if (sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])<=(self.data.node_cores_matrix[j]) : #core constraint
                                         #print("✓ core constraint ")
                                         #print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r])
-                                        for i in range(self.data.sources):
+                                        for i in range(len(self.data.sources)):
                                             if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -473,7 +475,7 @@ class Solver:
                                     if sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_active]: #core constraint
                                         #print("✓ core constraint ")
                                         #print("CORE REQ: ",sum(self.x_jr[j_temp_active,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_active]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_active]*self.req_distribution[f][r])
-                                        for i in range(self.data.sources):
+                                        for i in range(len(self.data.sources)):
                                             if self.data.node_delay_matrix[i,j_temp_active]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                 #print("✓ delay constraint, arrived to node: ", i)
                                                 loc=1
@@ -499,7 +501,7 @@ class Solver:
                                         if sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r]<= self.data.node_cores_matrix[j_temp_f]: #core constraint
                                             #print("✓ core constraint ")
                                             #print("CORE REQ: ",sum(self.x_jr[j_temp_f,r_temp]*self.data.core_per_req_matrix[f_temp,j_temp_f]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j_temp_f]*self.req_distribution[f][r] )
-                                            for i in range(self.data.sources):
+                                            for i in range(len(self.data.sources)):
                                                 if self.data.node_delay_matrix[i,j_temp_f]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                     #print("✓ delay constraint, arrived to node: ", i)
                                                     loc=1
@@ -523,7 +525,7 @@ class Solver:
                                         if sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r]<= (self.data.node_cores_matrix[j]): #core constraint
                                             #print("✓ core constraint ")
                                             #print("CORE REQ: ",sum(self.x_jr[j,r_temp]*self.data.core_per_req_matrix[f_temp,j]*self.req_distribution[f_temp,r_temp] for f_temp in range(len(self.data.functions)) for r_temp in self.requests_index)+self.data.core_per_req_matrix[f,j]*self.req_distribution[f][r] )
-                                            for i in range(self.data.sources):
+                                            for i in range(len(self.data.sources)):
                                                 if self.data.node_delay_matrix[i,j]<self.data.max_delay_matrix[f] and self.loc_arrival_r[i][r]==1 and self.req_distribution[f][r]==1: #delay constraint
                                                     #print("✓ delay constraint, arrived to node: ", i)
                                                     loc=1
@@ -555,15 +557,15 @@ class Solver:
     
             if all(self.c_fj[f,:]==0): #when there are no requests
                 #print(" **ENTRO CONDICION VACIO 2")
-                rand_node= np.random.choice(range(self.data.sources))
+                rand_node= np.random.choice(range(len(self.data.sources)))
                 self.c_fj[f][rand_node]=1
                 self.S_active[f][rand_node]=1
                 self.y_j[rand_node]=1
 
     def results(self) -> Tuple[np.array, np.array]:
         # Fill c matrix
-        c_matrix = np.empty(shape=(len(self.data.functions), self.data.nodes))
-        for j in range(self.data.nodes):
+        c_matrix = np.empty(shape=(len(self.data.functions), len(self.data.nodes)))
+        for j in range(len(self.data.nodes)):
             for f in range(len(self.data.functions)):
                 c_matrix[f][j] = self.c_fj[f][j]
         
@@ -572,9 +574,9 @@ class Solver:
         
         # Fill x matrix
         mat_mul = np.dot(self.req_distribution,np.transpose(self.x_jr))
-        x_matrix = np.empty(shape=(self.data.sources,len(self.data.functions),self.data.nodes))
-        for i in range(self.data.sources):
-            for j in range(self.data.nodes):
+        x_matrix = np.empty(shape=(len(self.data.sources),len(self.data.functions),len(self.data.nodes)))
+        for i in range(len(self.data.sources)):
+            for j in range(len(self.data.nodes)):
                 for f in range(len(self.data.functions)):
                     if sum(mat_mul[f])==0:
                         x_matrix[i][f][j] = 0
