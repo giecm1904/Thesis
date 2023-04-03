@@ -22,7 +22,7 @@ def makehash():
 
 
 
-data_dir = pathlib.Path("Single-Region")
+data_dir = pathlib.Path("Multi_Region")
 crh_dir = data_dir.joinpath("cr-h")
 cro_dir = data_dir.joinpath("cr-o")
 mcf_dir = data_dir.joinpath("mcf")
